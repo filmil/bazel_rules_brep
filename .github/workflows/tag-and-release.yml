@@ -26,11 +26,9 @@ on:
         required: false
 
 jobs:
-  # The monthly cron used to bump a version whether or not anything had landed,
-  # so the same tree was released again and again: v0.3.2, v0.3.3 and v0.3.4 all
-  # point at commit 1b8bcc7, as do v0.3.0/v0.3.1 and v0.2.38/v0.2.39. This job
-  # asks the only question that matters -- did anything get committed since the
-  # last release? -- and every job below hangs off the answer.
+  # A release only happens when something was committed since the last tag.
+  # Without this check a scheduled or repeated run would release the same
+  # tree again under a new version. Every job below depends on its answer.
   check:
     runs-on: ubuntu-latest
     outputs:

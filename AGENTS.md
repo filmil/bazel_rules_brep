@@ -29,8 +29,9 @@ the change.
    hermetically, stop and ask; do not make it work with a host install.
 3. Find targets with `bazel query` and `bazel cquery`. Run
    `bazel run //tools:buildifier` on every change.
-4. Update golden files only with `bazel run //:update_goldens`, and give
-   the reason in the commit message.
+4. Once there are golden files, update them only with
+   `bazel run //:update_goldens`, and give the reason in the commit
+   message.
 5. A change to geometry (a part, an assembly or their parameters) attaches
    the `cad_render` PNGs to the pull request.
 6. One logical change per pull request: one rule, one feature, or one
@@ -45,7 +46,8 @@ the change.
 # Rules particular to this repository
 
 * **Tools come from toolchains only.** Every action runs its tool through
-  `run_tool` in `//brep/private`, with the tool from `ctx.toolchains`.
+  `run_tool` in `//brep/private` (issue #4), with the tool from
+  `ctx.toolchains`.
   No private attribute names an external tool.
 * **Public packages name no dev dependency.** A user of the module loads
   `//brep` and `//`, where `@stardoc`, `@bazel_lib`, `@buildifier_prebuilt`
