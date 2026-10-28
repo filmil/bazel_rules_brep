@@ -4,7 +4,7 @@
 Load every rule from this file:
 
 ```starlark
-load("@rules_brep//brep:defs.bzl", "swap_test", "tool_toolchain")
+load("@rules_brep//brep:defs.bzl", "determinism_test", "swap_test", "tool_toolchain")
 ```
 
 The rules arrive in milestone M4 (see the issues of
@@ -12,9 +12,11 @@ https://github.com/filmil/bazel_rules_brep). This file is the only public
 entry point; everything under `//brep/private` may change without notice.
 """
 
+load("//brep/private:determinism.bzl", _determinism_test = "determinism_test")
 load("//brep/private:swap_test.bzl", _swap_test = "swap_test")
 load("//brep/private:toolchains.bzl", _tool_toolchain = "tool_toolchain")
 
+determinism_test = _determinism_test
 swap_test = _swap_test
 tool_toolchain = _tool_toolchain
 
