@@ -51,7 +51,7 @@ the change.
   No private attribute names an external tool.
 * **Public packages name no dev dependency.** A user of the module loads
   `//brep` and `//`, where `@stardoc`, `@bazel_lib`, `@buildifier_prebuilt`
-  and `@toolchains_llvm` are not visible. Documentation targets live in
+  and `@hermetic_cc_toolchain` are not visible. Documentation targets live in
   `//docs` and development tools in `//tools`.
 * **Documentation is generated.** After changing a `.bzl` file, run
   `bazel run //docs:update_docs`; `bazel test //...` fails until then.
