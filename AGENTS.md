@@ -18,9 +18,9 @@ module passes (`cd integration && bazel test //...`), and new tests cover
 the change.
 
 1. Edit text sources only: part scripts (`.py`), `BUILD.bazel`,
-   `MODULE.bazel`, `.bzl`, Go sources, the locked requirements file. Do not commit
-   generated outputs, except the docs that `bazel run //docs:update_docs`
-   writes.
+   `MODULE.bazel`, `.bzl`, Go sources, the locked requirements file. Do
+   not commit generated outputs, except the docs that
+   `bazel run //docs:update_docs` writes.
 2. Keep every action hermetic. No host tools, no host files outside the
    workspace, no host environment variables, no network in actions. Add
    each external file with `http_archive` or `http_file` and a pinned
