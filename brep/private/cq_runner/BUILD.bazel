@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: Apache-2.0
+load("@brep_pip_cadquery//:requirements.bzl", "requirement")
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+# The CadQuery runner (issue #15), on the hermetic Python 3.12, with
+# CadQuery and its OCP from requirements_cadquery_lock.txt. Built only
+# when a cad_part asks for CadQuery.
+py_binary(
+    name = "cq_runner",
+    srcs = ["cq_runner.py"],
+    legacy_create_init = False,
+    python_version = "3.12",
+    visibility = ["//brep/toolchains:__pkg__"],
+    deps = [
+        "//brep/private/runner:export",
+        requirement("cadquery"),
+    ],
+)
+
+py_library(
+    name = "cq_runner_lib",
+    srcs = ["cq_runner.py"],
+    imports = ["."],
+    deps = [
+        "//brep/private/runner:export",
+        requirement("cadquery"),
+    ],
+)
+
+py_test(
+    name = "cq_runner_test",
+    size = "medium",
+    srcs = ["cq_runner_test.py"],
+    data = glob(["testdata/**/*.py"]) + ["@brep_gl_libs//:libs"],
+    # The GL and X11 libraries OCP loads; the test loads them first.
+    env = {"BREP_GL_LIBS": "$(rootpaths @brep_gl_libs//:libs)"},
+    legacy_create_init = False,
+    python_version = "3.12",
+    deps = [":cq_runner_lib"],
+)

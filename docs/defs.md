@@ -61,7 +61,7 @@ time `--@rules_brep//brep:source_date_epoch`.
 <pre>
 load("@rules_brep//brep:defs.bzl", "cad_part")
 
-cad_part(<a href="#cad_part-name">name</a>, <a href="#cad_part-deps">deps</a>, <a href="#cad_part-src">src</a>, <a href="#cad_part-params">params</a>, <a href="#cad_part-stl_angular_tolerance">stl_angular_tolerance</a>, <a href="#cad_part-stl_tolerance">stl_tolerance</a>)
+cad_part(<a href="#cad_part-name">name</a>, <a href="#cad_part-deps">deps</a>, <a href="#cad_part-src">src</a>, <a href="#cad_part-library">library</a>, <a href="#cad_part-params">params</a>, <a href="#cad_part-stl_angular_tolerance">stl_angular_tolerance</a>, <a href="#cad_part-stl_tolerance">stl_tolerance</a>)
 </pre>
 
 A part script, built into `<name>.step` and `<name>.stl`.
@@ -78,6 +78,11 @@ The script defines `build(params: dict)`, which returns a build123d solid
 (or a compound of solids).
 It runs with build123d and OCCT on the CAD toolchain.
 
+With `library = "cadquery"`, the script is a CadQuery script instead: its
+`build(params)` returns a CadQuery `Workplane` or `Shape`, and it runs on
+the CadQuery toolchain, with CadQuery 2.8 and its own OCCT. Its wheels (467
+MB, VTK among them) are fetched only for a build that has such a part.
+
 * `<name>.step` names the shape `<name>`, and its header time is
   `--@rules_brep//brep:source_date_epoch` (default 1970-01-01).
 * `<name>.stl` is binary, meshed with parallel meshing off, so the same
@@ -93,6 +98,7 @@ It runs with build123d and OCCT on the CAD toolchain.
 | <a id="cad_part-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
 | <a id="cad_part-deps"></a>deps |  Python files the script imports; each one's directory is on the import path.   | <a href="https://bazel.build/concepts/labels">List of labels</a> | optional |  `[]`  |
 | <a id="cad_part-src"></a>src |  The part script.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+| <a id="cad_part-library"></a>library |  The CAD library of the script: `"build123d"` or `"cadquery"`.   | String | optional |  `"build123d"`  |
 | <a id="cad_part-params"></a>params |  Parameters for `build(params)`. Each value is JSON: `"3"` is the number 3, `'"steel"'` the string steel, `"true"` a boolean.   | <a href="https://bazel.build/rules/lib/core/dict">Dictionary: String -> String</a> | optional |  `{}`  |
 | <a id="cad_part-stl_angular_tolerance"></a>stl_angular_tolerance |  The STL mesh's angular deflection, in radians.   | String | optional |  `"0.1"`  |
 | <a id="cad_part-stl_tolerance"></a>stl_tolerance |  The STL mesh's linear deflection, in mm.   | String | optional |  `"0.001"`  |

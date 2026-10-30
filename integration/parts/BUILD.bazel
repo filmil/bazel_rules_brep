@@ -39,3 +39,19 @@ interference_test(
     size = "small",
     assembly = ":pair",
 )
+
+# The same bracket in CadQuery (issue #15): its own toolchain and wheels,
+# fetched only because this part asks for them.
+cad_part(
+    name = "cq_bracket",
+    src = "cq_bracket.py",
+    library = "cadquery",
+    params = {"thickness": "4"},
+    visibility = ["//geometry_equal:__pkg__"],
+)
+
+determinism_test(
+    name = "cq_bracket_determinism_test",
+    size = "small",
+    target = ":cq_bracket",
+)

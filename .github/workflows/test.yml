@@ -182,6 +182,25 @@ jobs:
           USE_BAZEL_VERSION: ${{ matrix.bazel }}
         run: bazel --ignore_all_rc_files mod graph --registry=https://bcr.bazel.build > /dev/null
 
+      # Issue #15: CadQuery's 467 MB of wheels are fetched only for a build
+      # that has a CadQuery part. This runs first, in a fresh output base:
+      # the build123d parts must leave no CadQuery wheel repository behind.
+      - name: A build123d build fetches no CadQuery wheels
+        working-directory: integration
+        env:
+          USE_BAZEL_VERSION: ${{ matrix.bazel }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+          ob="${HOME}/ob_lazy"
+          bazel --output_base="${ob}" build //parts:bracket //parts:pair
+          # Each wheel's repository is the hub's name, an underscore and
+          # more (the Python version, the wheel); the hub alone is no wheel.
+          n=$(ls "${ob}/external" | grep -c 'brep_pip_cadquery_' || true)
+          if [ "${n}" != "0" ]; then
+            echo "a build without CadQuery parts fetched ${n} CadQuery wheel repositories"; exit 1
+          fi
+          echo "no CadQuery wheel repositories fetched"
+
       - name: Test the integration module with Bazel ${{ matrix.bazel }}
         working-directory: integration
         env:

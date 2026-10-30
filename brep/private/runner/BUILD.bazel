@@ -4,13 +4,26 @@ load("@rules_python//python:py_binary.bzl", "py_binary")
 load("@rules_python//python:py_library.bzl", "py_library")
 load("@rules_python//python:py_test.bzl", "py_test")
 
+# What the runners share, with OCP alone (issue #15): loading a part
+# script, the epoch, and the STL writer; and the CadQuery runner's STEP
+# writer. It names no hub: each runner brings its own OCP.
+py_library(
+    name = "export",
+    srcs = ["export.py"],
+    imports = ["."],
+    visibility = ["//brep/private/cq_runner:__pkg__"],
+)
+
 # The CAD runner (issue #7), on the hermetic Python 3.12 of rules_python,
 # with build123d and OCP from wheels locked in requirements_lock.txt.
 py_library(
     name = "runner_lib",
     srcs = ["runner.py"],
     imports = ["."],
-    deps = [requirement("build123d")],
+    deps = [
+        ":export",
+        requirement("build123d"),
+    ],
 )
 
 py_binary(
@@ -20,7 +33,10 @@ py_binary(
     legacy_create_init = False,
     python_version = "3.12",
     visibility = ["//brep/toolchains:__pkg__"],
-    deps = [requirement("build123d")],
+    deps = [
+        ":export",
+        requirement("build123d"),
+    ],
 )
 
 py_test(

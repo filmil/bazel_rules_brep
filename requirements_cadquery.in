@@ -1,0 +1,4 @@
+# CadQuery part scripts (issue #15), in their own hub: CadQuery 2.8 pins
+# cadquery-ocp below 8.0, which conflicts with build123d 0.13. Lock with
+# `bazel run //tools:requirements_cadquery.update`.
+cadquery==2.8.0

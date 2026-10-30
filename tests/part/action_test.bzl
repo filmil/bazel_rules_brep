@@ -30,3 +30,15 @@ part_action_test = analysistest.make(
     _part_action_impl,
     attrs = {"params_json": attr.string(mandatory = True)},
 )
+
+def _cq_runner_impl(ctx):
+    """The CadQuery part's action runs the CadQuery runner, not build123d's."""
+    env = analysistest.begin(ctx)
+    actions = [a for a in analysistest.target_actions(env) if a.mnemonic == "BrepPart"]
+    asserts.equals(env, 1, len(actions), "BrepPart actions")
+    argv = actions[0].argv
+    tool = argv[argv.index("--") + 1]
+    asserts.true(env, tool.endswith("/cq_runner"), "the tool is the CadQuery runner: %s" % tool)
+    return analysistest.end(env)
+
+cq_runner_test = analysistest.make(_cq_runner_impl)

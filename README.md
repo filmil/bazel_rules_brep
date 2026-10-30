@@ -66,8 +66,23 @@ geometry_equal_test(
 )
 ```
 
-The CAD runner is Python (build123d and OCCT) on the hermetic interpreter
-of rules_python; rules_brep registers it. Add this to `.bazelrc`, or
+A CadQuery script builds the same way, with `library = "cadquery"`:
+
+```starlark
+cad_part(
+    name = "bracket_cq",
+    src = "bracket_cq.py",  # build(params) returns a Workplane or a Shape
+    library = "cadquery",
+)
+```
+
+CadQuery 2.8 needs an older OCCT than build123d, so it has a toolchain and
+a locked set of wheels of its own (`requirements_cadquery_lock.txt`):
+467 MB, VTK, casadi and numba among them. Bazel fetches them only for a
+build that has a CadQuery part.
+
+The CAD runners are Python (build123d or CadQuery, and OCCT) on the
+hermetic interpreter of rules_python; rules_brep registers them. Add this to `.bazelrc`, or
 rules_python starts it through the host's `python3`:
 
 ```
@@ -123,6 +138,10 @@ their versions, sources and licenses, as they are added.
 * build123d 0.13.0 (Apache 2.0) and OCP, OCCT's Python binding, as
   cadquery-ocp-novtk 8.0.1.1.0 wheels (LGPL 2.1 with the OCCT exception),
   with their dependencies, pinned by hash in `requirements_lock.txt`.
+* CadQuery 2.8.0 (Apache 2.0) and its OCP, as cadquery-ocp 7.9.3.1.1
+  wheels (LGPL 2.1 with the OCCT exception), with VTK 9.6.2 (BSD 3-clause)
+  and their other dependencies, pinned by hash in
+  `requirements_cadquery_lock.txt`. Fetched only for CadQuery parts.
 * The GL, X11 and expat libraries OCP loads, from Debian 11 packages pinned
   by sha256 (`brep/private/gl_libs.bzl`): libglvnd (MIT-style), libX11,
   libxcb, libXau, libXdmcp and expat (MIT), libbsd and libmd (BSD and
