@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# cad_assembly (issue #9): a plate with a post placed twice, written as one
+# STEP with named children; the same bytes in two configurations; and
+# placements that fail analysis.
+load("@rules_go//go:def.bzl", "go_test")
+load("//brep:defs.bzl", "cad_assembly", "cad_part", "determinism_test", "swap_test")
+load("//tests:fails_test.bzl", "fails_test")
+load(":action_test.bzl", "assembly_action_test")
+
+cad_part(
+    name = "plate",
+    src = "plate.py",
+)
+
+cad_part(
+    name = "post",
+    src = "post.py",
+)
+
+cad_assembly(
+    name = "stand",
+    parts = {
+        ":plate": "{}",
+        ":post": '[{"pos": [-20, 0, 2]}, {"pos": [20, 0, 2], "rot": [0, 0, 45]}]',
+    },
+)
+
+assembly_action_test(
+    name = "stand_action_test",
+    size = "small",
+    children = [
+        "plate",
+        "post_1",
+        "post_2",
+    ],
+    positions = [
+        "0,0,0",
+        "-20,0,2",
+        "20,0,2",
+    ],
+    target_under_test = ":stand",
+)
+
+swap_test(
+    name = "stand_swap_test",
+    size = "small",
+    targets = [":stand"],
+)
+
+determinism_test(
+    name = "stand_determinism_test",
+    size = "small",
+    target = ":stand",
+)
+
+go_test(
+    name = "stand_files_test",
+    size = "small",
+    srcs = ["files_test.go"],
+    args = ["--step=$(rlocationpath :stand)"],
+    data = [":stand"],
+    pure = "on",
+    deps = ["@rules_go//go/runfiles"],
+)
+
+# Placements that fail analysis, each with the message it must give.
+[
+    [
+        cad_assembly(
+            name = name,
+            parts = parts,
+            tags = ["manual"],
+        ),
+        fails_test(
+            name = name + "_test",
+            size = "small",
+            message = message,
+            target_under_test = ":" + name,
+        ),
+    ]
+    for name, parts, message in [
+        (
+            "not_json",
+            {":plate": "{pos"},
+            "is not JSON",
+        ),
+        (
+            "unknown_key",
+            {":plate": '{"position": [0, 0, 0]}'},
+            "has unknown keys [\"position\"]",
+        ),
+        (
+            "short_pos",
+            {":plate": '{"pos": [1, 2]}'},
+            "must be a list of 3 numbers",
+        ),
+        (
+            "text_rot",
+            {":plate": '{"rot": [0, "x", 0]}'},
+            "must be 3 finite numbers",
+        ),
+        (
+            "nowhere",
+            {":plate": "[]"},
+            "places the part nowhere",
+        ),
+        (
+            "same_name",
+            {
+                ":plate": "{}",
+                "//tests/assembly/other:plate": "{}",
+            },
+            "two children are named \"plate\"",
+        ),
+    ]
+]

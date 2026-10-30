@@ -3,7 +3,7 @@
 # A part built by a module that depends on rules_brep: the hermetic Python,
 # the locked wheels, the pinned GL libraries and the runner, across the
 # module boundary; the same bytes in two configurations (issue #8).
-load("@rules_brep//brep:defs.bzl", "cad_part", "determinism_test")
+load("@rules_brep//brep:defs.bzl", "cad_assembly", "cad_part", "determinism_test")
 
 cad_part(
     name = "bracket",
@@ -15,4 +15,16 @@ determinism_test(
     name = "bracket_determinism_test",
     size = "small",
     target = ":bracket",
+)
+
+# Two brackets back to back (issue #9).
+cad_assembly(
+    name = "pair",
+    parts = {":bracket": '[{"pos": [0, 0, 0]}, {"pos": [0, 30, 0], "rot": [0, 0, 180]}]'},
+)
+
+determinism_test(
+    name = "pair_determinism_test",
+    size = "small",
+    target = ":pair",
 )

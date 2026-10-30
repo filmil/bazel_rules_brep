@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# A second part named "plate", for the test that two children may not
+# share a name.
+load("//brep:defs.bzl", "cad_part")
+
+cad_part(
+    name = "plate",
+    src = "plate.py",
+    tags = ["manual"],
+    visibility = ["//tests/assembly:__pkg__"],
+)
