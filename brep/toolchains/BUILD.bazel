@@ -28,6 +28,7 @@ config_setting(
 helpers_toolchain(
     name = "helpers_impl",
     compare = "//brep/private/detcompare",
+    geqcheck = "//brep/private/geqcheck",
     launcher = "//brep/private/launcher",
     swapcheck = "//brep/private/swapcheck",
 )
@@ -66,6 +67,7 @@ toolchain(
 cad_toolchain(
     name = "cad_impl",
     libs = "@brep_gl_libs//:libs",
+    measurer = "//brep/private/measurer",
     python_version = "3.12",
     renderer = "//brep/private/renderer",
     runner = "//brep/private/runner",
@@ -87,6 +89,7 @@ toolchain(
 # swap_test's CAD runner: the stub stands in for it.
 cad_toolchain(
     name = "cad_stub_impl",
+    measurer = "//brep/private/stub",
     python_version = "3.12",
     renderer = "//brep/private/stub",
     runner = "//brep/private/stub",

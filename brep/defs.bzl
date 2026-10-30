@@ -15,6 +15,7 @@ entry point; everything under `//brep/private` may change without notice.
 load("//brep/private:assembly.bzl", _CadAssemblyInfo = "CadAssemblyInfo", _cad_assembly = "cad_assembly")
 load("//brep/private:cad_toolchain.bzl", _CadToolchainInfo = "CadToolchainInfo", _cad_toolchain = "cad_toolchain")
 load("//brep/private:determinism.bzl", _determinism_test = "determinism_test")
+load("//brep/private:geometry_equal.bzl", _geometry_equal_test = "geometry_equal_test")
 load("//brep/private:part.bzl", _CadPartInfo = "CadPartInfo", _cad_part = "cad_part")
 load("//brep/private:render.bzl", _cad_render = "cad_render")
 load("//brep/private:swap_test.bzl", _swap_test = "swap_test")
@@ -28,6 +29,7 @@ cad_part = _cad_part
 cad_render = _cad_render
 cad_toolchain = _cad_toolchain
 determinism_test = _determinism_test
+geometry_equal_test = _geometry_equal_test
 swap_test = _swap_test
 tool_toolchain = _tool_toolchain
 

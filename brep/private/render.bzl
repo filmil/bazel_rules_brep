@@ -1,23 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """cad_render: views of a model as PNG, without OpenGL (issue #10)."""
 
-load(":part.bzl", "CadPartInfo")
 load(":run_tool.bzl", "RUN_TOOL_TOOLCHAINS", "run_tool")
+load(":step_file.bzl", "step_file")
 
 _CAD = Label("//brep:toolchain_type")
 
 # The views the renderer draws, in the order of its outputs.
 RENDER_VIEWS = ["front", "back", "left", "right", "top", "bottom"]
-
-def _step_of(ctx):
-    """The STEP file of src: a cad_part's, or the one file it names."""
-    src = ctx.attr.src
-    if CadPartInfo in src:
-        return src[CadPartInfo].step
-    steps = [f for f in src[DefaultInfo].files.to_list() if f.extension in ["step", "stp"]]
-    if len(steps) != 1:
-        fail("%s: src must be a cad_part or name one STEP file; %s has %d" % (ctx.label, src.label, len(steps)))
-    return steps[0]
 
 def _cad_render_impl(ctx):
     views = ctx.attr.views
@@ -31,7 +21,7 @@ def _cad_render_impl(ctx):
     if ctx.attr.size < 64 or ctx.attr.size > 4096:
         fail("%s: size = %d: want 64 to 4096 pixels" % (ctx.label, ctx.attr.size))
 
-    step = _step_of(ctx)
+    step = step_file(ctx, ctx.attr.src, "src")
     args = ctx.actions.args()
     args.add("--step", step)
     args.add("--size", str(ctx.attr.size))

@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: Apache-2.0
+load("@brep_pip//:requirements.bzl", "requirement")
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+# The CAD measurer (issue #11): OCP measures a STEP model for
+# geometry_equal_test. On the hermetic Python 3.12, with wheels locked in
+# requirements_lock.txt.
+py_library(
+    name = "measurer_lib",
+    srcs = ["measurer.py"],
+    imports = ["."],
+    deps = [requirement("build123d")],
+)
+
+py_binary(
+    name = "measurer",
+    srcs = ["measurer.py"],
+    # No __init__.py made up in the runfiles: the measurer is one file.
+    legacy_create_init = False,
+    python_version = "3.12",
+    visibility = ["//brep/toolchains:__pkg__"],
+    deps = [requirement("build123d")],
+)
+
+py_test(
+    name = "measurer_test",
+    size = "small",
+    srcs = ["measurer_test.py"],
+    data = ["@brep_gl_libs//:libs"],
+    # The GL and X11 libraries OCP loads; the test loads them first.
+    env = {"BREP_GL_LIBS": "$(rootpaths @brep_gl_libs//:libs)"},
+    legacy_create_init = False,
+    python_version = "3.12",
+    deps = [
+        ":measurer_lib",
+        requirement("build123d"),
+    ],
+)
