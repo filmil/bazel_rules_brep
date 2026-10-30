@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The CAD toolchain: the runner that builds part scripts (issue #7), and the renderer (issue #10)."""
+"""The CAD toolchain: the runner that builds part scripts (issue #7), the renderer (issue #10) and
+the measurer (issue #11)."""
 
 CadToolchainInfo = provider(
-    doc = "What the CAD toolchain offers beyond its `runner` and `renderer` tools.",
+    doc = "What the CAD toolchain offers beyond its `runner`, `renderer` and `measurer` tools.",
     fields = {
-        "python_version": "string: the Python version of the runner and the renderer, such as \"3.12\".",
+        "python_version": "string: the Python version of the runner, the renderer and the measurer, " +
+                          "such as \"3.12\".",
     },
 )
 
@@ -21,6 +23,7 @@ def _cad_toolchain_impl(ctx):
         path_env = path_env,
         tool_inputs = depset(libs),
         tools = {
+            "measurer": ctx.attr.measurer[DefaultInfo].files_to_run,
             "renderer": ctx.attr.renderer[DefaultInfo].files_to_run,
             "runner": ctx.attr.runner[DefaultInfo].files_to_run,
         },
@@ -45,7 +48,9 @@ Its tool, `runner --part PART.py [--params JSON] [--summary OUT]`, imports
 a part script, calls its `build(params)` function, and checks that the
 result is a valid build123d shape. Its tool `renderer --step IN.step
 --out VIEW=OUT.png [--out VIEW=OUT.png]... [--size PIXELS]` draws views of a
-model as PNG, with no OpenGL.
+model as PNG, with no OpenGL. Its tool `measurer --step IN.step --out OUT.txt`
+writes a model's volume, area, center of mass, bounding box and counts of
+solids, faces, edges and vertices, one per line.
 rules_brep registers one on the
 hermetic Python of rules_python, with build123d and OCP locked by hash,
 and the GL and X11 libraries OCP loads, from pinned Debian 11 packages.
@@ -57,6 +62,12 @@ and the GL and X11 libraries OCP loads, from pinned Debian 11 packages.
             executable = True,
             cfg = "exec",
         ),
+        "measurer": attr.label(
+            doc = "The CAD measurer.",
+            mandatory = True,
+            executable = True,
+            cfg = "exec",
+        ),
         "renderer": attr.label(
             doc = "The CAD renderer.",
             mandatory = True,
@@ -64,12 +75,12 @@ and the GL and X11 libraries OCP loads, from pinned Debian 11 packages.
             cfg = "exec",
         ),
         "python_version": attr.string(
-            doc = "The Python version of the runner and the renderer.",
+            doc = "The Python version of the runner, the renderer and the measurer.",
             mandatory = True,
         ),
         "libs": attr.label(
-            doc = "Shared libraries the runner and the renderer (through OCP) load from the " +
-                  "host otherwise, all in one directory; it goes on their LD_LIBRARY_PATH.",
+            doc = "Shared libraries the runner, the renderer and the measurer (through OCP) load " +
+                  "from the host otherwise, all in one directory; it goes on their LD_LIBRARY_PATH.",
             allow_files = True,
             cfg = "exec",
         ),

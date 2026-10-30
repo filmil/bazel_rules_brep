@@ -147,7 +147,7 @@ PNGs to its pull request (AGENTS.md, rule 5).
 <pre>
 load("@rules_brep//brep:defs.bzl", "cad_toolchain")
 
-cad_toolchain(<a href="#cad_toolchain-name">name</a>, <a href="#cad_toolchain-libs">libs</a>, <a href="#cad_toolchain-python_version">python_version</a>, <a href="#cad_toolchain-renderer">renderer</a>, <a href="#cad_toolchain-runner">runner</a>)
+cad_toolchain(<a href="#cad_toolchain-name">name</a>, <a href="#cad_toolchain-libs">libs</a>, <a href="#cad_toolchain-measurer">measurer</a>, <a href="#cad_toolchain-python_version">python_version</a>, <a href="#cad_toolchain-renderer">renderer</a>, <a href="#cad_toolchain-runner">runner</a>)
 </pre>
 
 The CAD toolchain, for `@rules_brep//brep:toolchain_type`.
@@ -156,7 +156,9 @@ Its tool, `runner --part PART.py [--params JSON] [--summary OUT]`, imports
 a part script, calls its `build(params)` function, and checks that the
 result is a valid build123d shape. Its tool `renderer --step IN.step
 --out VIEW=OUT.png [--out VIEW=OUT.png]... [--size PIXELS]` draws views of a
-model as PNG, with no OpenGL.
+model as PNG, with no OpenGL. Its tool `measurer --step IN.step --out OUT.txt`
+writes a model's volume, area, center of mass, bounding box and counts of
+solids, faces, edges and vertices, one per line.
 rules_brep registers one on the
 hermetic Python of rules_python, with build123d and OCP locked by hash,
 and the GL and X11 libraries OCP loads, from pinned Debian 11 packages.
@@ -167,10 +169,57 @@ and the GL and X11 libraries OCP loads, from pinned Debian 11 packages.
 | Name  | Description | Type | Mandatory | Default |
 | :------------- | :------------- | :------------- | :------------- | :------------- |
 | <a id="cad_toolchain-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
-| <a id="cad_toolchain-libs"></a>libs |  Shared libraries the runner and the renderer (through OCP) load from the host otherwise, all in one directory; it goes on their LD_LIBRARY_PATH.   | <a href="https://bazel.build/concepts/labels">Label</a> | optional |  `None`  |
-| <a id="cad_toolchain-python_version"></a>python_version |  The Python version of the runner and the renderer.   | String | required |  |
+| <a id="cad_toolchain-libs"></a>libs |  Shared libraries the runner, the renderer and the measurer (through OCP) load from the host otherwise, all in one directory; it goes on their LD_LIBRARY_PATH.   | <a href="https://bazel.build/concepts/labels">Label</a> | optional |  `None`  |
+| <a id="cad_toolchain-measurer"></a>measurer |  The CAD measurer.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+| <a id="cad_toolchain-python_version"></a>python_version |  The Python version of the runner, the renderer and the measurer.   | String | required |  |
 | <a id="cad_toolchain-renderer"></a>renderer |  The CAD renderer.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
 | <a id="cad_toolchain-runner"></a>runner |  The CAD runner.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+
+
+<a id="geometry_equal_test"></a>
+
+## geometry_equal_test
+
+<pre>
+load("@rules_brep//brep:defs.bzl", "geometry_equal_test")
+
+geometry_equal_test(<a href="#geometry_equal_test-name">name</a>, <a href="#geometry_equal_test-a">a</a>, <a href="#geometry_equal_test-abs_tolerance">abs_tolerance</a>, <a href="#geometry_equal_test-b">b</a>, <a href="#geometry_equal_test-expect">expect</a>, <a href="#geometry_equal_test-rel_tolerance">rel_tolerance</a>)
+</pre>
+
+Checks that two shapes are the same within tolerances (spec D3).
+
+```starlark
+geometry_equal_test(
+    name = "bracket_geometry_test",
+    a = ":bracket",
+    b = "bracket_golden.step",
+    abs_tolerance = "0.001",
+)
+```
+
+`a` and `b` are each a `cad_part`, or a target that names one STEP file.
+Each is measured with OCP on the CAD toolchain: volume, surface area,
+center of mass, bounding box, and the numbers of solids, faces, edges and
+vertices. The test fails when a count differs, or when two numbers differ
+by more than `abs_tolerance + rel_tolerance * max(|a|, |b|)`, and says
+which.
+
+OCCT's results can differ in the last digits from one CPU to another, so a
+golden STEP file compares by bytes only on the platform that wrote it; this
+test compares by tolerance, on any platform. Area and center catch what
+volume and box miss, such as a hole that moved.
+
+**ATTRIBUTES**
+
+
+| Name  | Description | Type | Mandatory | Default |
+| :------------- | :------------- | :------------- | :------------- | :------------- |
+| <a id="geometry_equal_test-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
+| <a id="geometry_equal_test-a"></a>a |  The first shape: a `cad_part`, or a target that names one STEP file.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+| <a id="geometry_equal_test-abs_tolerance"></a>abs_tolerance |  How far two numbers may be apart, in mm, mm² or mm³, on top of the relative part: a floor for values near 0, such as a coordinate at the origin. The measurements have 6 decimals, so less than 0.000001 tells nothing apart.   | String | optional |  `"0.00001"`  |
+| <a id="geometry_equal_test-b"></a>b |  The second shape, as `a`.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+| <a id="geometry_equal_test-expect"></a>expect |  "equal", or "different" to check that two shapes are told apart.   | String | optional |  `"equal"`  |
+| <a id="geometry_equal_test-rel_tolerance"></a>rel_tolerance |  How far two numbers may be apart, as a fraction of the larger in size: the part of the tolerance that scales with each quantity's own unit and size.   | String | optional |  `"0.000001"`  |
 
 
 <a id="tool_toolchain"></a>
@@ -261,13 +310,13 @@ load("@rules_brep//brep:defs.bzl", "CadToolchainInfo")
 CadToolchainInfo(<a href="#CadToolchainInfo-python_version">python_version</a>)
 </pre>
 
-What the CAD toolchain offers beyond its `runner` and `renderer` tools.
+What the CAD toolchain offers beyond its `runner`, `renderer` and `measurer` tools.
 
 **FIELDS**
 
 | Name  | Description |
 | :------------- | :------------- |
-| <a id="CadToolchainInfo-python_version"></a>python_version |  string: the Python version of the runner and the renderer, such as "3.12".    |
+| <a id="CadToolchainInfo-python_version"></a>python_version |  string: the Python version of the runner, the renderer and the measurer, such as "3.12".    |
 
 
 <a id="determinism_test"></a>

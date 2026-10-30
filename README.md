@@ -35,7 +35,7 @@ common --registry=https://bcr.bazel.build
 The rules are documented in [docs/defs.md](docs/defs.md). A part:
 
 ```starlark
-load("@rules_brep//brep:defs.bzl", "cad_part", "cad_render")
+load("@rules_brep//brep:defs.bzl", "cad_part", "cad_render", "geometry_equal_test")
 
 cad_part(
     name = "bracket",
@@ -55,7 +55,16 @@ cad_render(
 ```
 
 `bazel build :bracket_views` writes `bracket_views_front.png`, and the
-back, left, right, top and bottom views.
+back, left, right, top and bottom views. To check a part against a golden
+STEP file from another platform, by measurement within tolerances:
+
+```starlark
+geometry_equal_test(
+    name = "bracket_geometry_test",
+    a = ":bracket",
+    b = "bracket_golden.step",
+)
+```
 
 The CAD runner is Python (build123d and OCCT) on the hermetic interpreter
 of rules_python; rules_brep registers it. Add this to `.bazelrc`, or

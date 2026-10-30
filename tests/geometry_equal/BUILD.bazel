@@ -1,0 +1,197 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# geometry_equal_test (issue #11): a part against itself and its own STEP
+# file, two parts that differ only where a hole is, the measure actions,
+# and attributes that fail analysis.
+load("//brep:defs.bzl", "cad_part", "geometry_equal_test")
+load("//tests:fails_test.bzl", "fails_test")
+load(":action_test.bzl", "measure_action_test")
+
+cad_part(
+    name = "plate",
+    src = "plate.py",
+)
+
+cad_part(
+    name = "plate_moved",
+    src = "plate.py",
+    params = {"hole_x": "12"},
+)
+
+# A target that is not a cad_part but names one STEP file.
+filegroup(
+    name = "plate_files",
+    srcs = [":plate"],
+)
+
+geometry_equal_test(
+    name = "same_test",
+    size = "small",
+    a = ":plate",
+    b = ":plate_files",
+)
+
+measure_action_test(
+    name = "same_action_test",
+    size = "small",
+    name_under_test = "same_test",
+    steps = [
+        "tests/geometry_equal/plate.step",
+        "tests/geometry_equal/plate.step",
+    ],
+    target_under_test = ":same_test",
+    want_env = {
+        "GEQ_ABS": "0.00001",
+        "GEQ_EXPECT": "equal",
+        "GEQ_REL": "0.000001",
+    },
+)
+
+# The same volume, area and box. The hole (pi * 3^2 * 4 mm^3) moves 2 mm,
+# so the center of mass moves 2 * 113.1 / 3086.9 mm along X, about
+# 0.073 mm, which the test sees.
+geometry_equal_test(
+    name = "moved_hole_test",
+    size = "small",
+    a = ":plate",
+    b = ":plate_moved",
+    expect = "different",
+)
+
+# A tolerance as large as the move hides it.
+geometry_equal_test(
+    name = "moved_hole_loose_test",
+    size = "small",
+    a = ":plate",
+    abs_tolerance = "0.1",
+    b = ":plate_moved",
+)
+
+measure_action_test(
+    name = "loose_action_test",
+    size = "small",
+    name_under_test = "moved_hole_loose_test",
+    steps = [
+        "tests/geometry_equal/plate.step",
+        "tests/geometry_equal/plate_moved.step",
+    ],
+    target_under_test = ":moved_hole_loose_test",
+    want_env = {"GEQ_ABS": "0.1"},
+)
+
+# Attributes that fail analysis, each with a message that says why.
+geometry_equal_test(
+    name = "bad_tolerance",
+    a = ":plate",
+    abs_tolerance = "small",
+    b = ":plate",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "bad_tolerance_test",
+    size = "small",
+    message = "abs_tolerance = \"small\": want a finite number, 0 or more",
+    target_under_test = ":bad_tolerance",
+)
+
+geometry_equal_test(
+    name = "negative_tolerance",
+    a = ":plate",
+    b = ":plate",
+    rel_tolerance = "-1",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "negative_tolerance_test",
+    size = "small",
+    message = "rel_tolerance = \"-1\": want a finite number, 0 or more",
+    target_under_test = ":negative_tolerance",
+)
+
+cad_part(
+    name = "plate_again",
+    src = "plate.py",
+    tags = ["manual"],
+)
+
+filegroup(
+    name = "two_steps",
+    srcs = [
+        ":plate",
+        ":plate_again",
+    ],
+    tags = ["manual"],
+)
+
+geometry_equal_test(
+    name = "two_steps_geq",
+    a = ":plate",
+    b = ":two_steps",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "two_steps_test",
+    size = "small",
+    message = "b must be a cad_part or name one STEP file",
+    target_under_test = ":two_steps_geq",
+)
+
+# Strings that look like numbers but are not, and an infinite one.
+[
+    geometry_equal_test(
+        name = "tolerance_%s" % name,
+        a = ":plate",
+        abs_tolerance = value,
+        b = ":plate",
+        tags = ["manual"],
+    )
+    for name, value in [
+        ("dot", "."),
+        ("dashes", "--"),
+        ("no_exponent", "1e"),
+        ("two_dots", "1.2.3"),
+        ("empty", ""),
+        ("inf", "1e999"),
+    ]
+]
+
+[
+    fails_test(
+        name = "tolerance_%s_test" % name,
+        size = "small",
+        message = "want a finite number, 0 or more",
+        target_under_test = ":tolerance_%s" % name,
+    )
+    for name in [
+        "dot",
+        "dashes",
+        "no_exponent",
+        "two_dots",
+        "empty",
+        "inf",
+    ]
+]
+
+# A target with no STEP file: Bazel rejects it before the rule runs.
+filegroup(
+    name = "no_step",
+    srcs = ["plate.py"],
+    tags = ["manual"],
+)
+
+geometry_equal_test(
+    name = "no_step_geq",
+    a = ":no_step",
+    b = ":plate",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "no_step_test",
+    size = "small",
+    message = "does not produce any geometry_equal_test a files",
+    target_under_test = ":no_step_geq",
+)
