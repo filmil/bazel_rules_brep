@@ -286,6 +286,40 @@ class AssemblyTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             runner.main(["--assemble", spec, "--step", "o", "--report", out])
 
+    def fit(self, shift="0", z=4.0):
+        board = os.path.join(self.tmp.name, "board%s.step" % shift)
+        runner.main(["--part", part("board.py"), "--params", '{"shift": %s}' % shift, "--name", "b", "--step", board])
+        tray = os.path.join(self.tmp.name, "tray.step")
+        runner.main(["--part", part("tray.py"), "--name", "t", "--step", tray])
+        report = runner.fit({"board": board, "enclosure": tray, "pos": [0, 0, z], "rot": [0, 0, 0]})
+        out = {"hole": [], "mount": []}
+        for line in report.splitlines():
+            f = line.split("\t")
+            if f[0] in ("hole", "mount"):
+                out[f[0]].append(tuple(round(float(v), 6) for v in f[1:]))
+            else:
+                out[f[0]] = float(f[1])
+        return out
+
+    def test_fit(self):
+        got = self.fit()
+        self.assertEqual(0.0, got["overlap"])  # it rests on the bosses
+        self.assertAlmostEqual(5.0, got["clearance"], places=6)  # 5 mm to each wall
+        holes = sorted(got["hole"])
+        self.assertEqual([(-20, -10, 1.6), (-20, 10, 1.6), (20, -10, 1.6), (20, 10, 1.6)], holes)
+        mount_centers = {(x, y) for x, y, r in got["mount"]}
+        for x, y, r in holes:
+            self.assertIn((x, y), mount_centers)
+
+    def test_moved_hole(self):
+        got = self.fit(shift="1")
+        self.assertIn((-19, -10, 1.6), got["hole"])
+        self.assertNotIn((-19, -10), {(x, y) for x, y, r in got["mount"]})
+
+    def test_board_in_the_floor(self):
+        got = self.fit(z=-0.5)  # sunk 0.5 mm into the floor and the bosses
+        self.assertGreater(got["overlap"], 0.0)
+
     def test_failures(self):
         with self.assertRaises(runner.PartError) as cm:
             self.assemble([])

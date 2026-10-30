@@ -53,6 +53,7 @@ config_setting(
 helpers_toolchain(
     name = "helpers_impl",
     compare = "//brep/private/detcompare",
+    fitcheck = "//brep/private/fitcheck",
     geqcheck = "//brep/private/geqcheck",
     launcher = "//brep/private/launcher",
     overlapcheck = "//brep/private/overlapcheck",

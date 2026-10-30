@@ -14,6 +14,7 @@ bzl_library(
         "interference.bzl",
         "numbers.bzl",
         "part.bzl",
+        "pcb_fit.bzl",
         "render.bzl",
         "run_tool.bzl",
         "step_file.bzl",

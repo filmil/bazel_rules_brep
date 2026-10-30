@@ -325,6 +325,62 @@ passes when at least one pair overlaps, and fails when none does.
 | <a id="interference_test-expect"></a>expect |  "none", or "overlap" for a known-bad assembly.   | String | optional |  `"none"`  |
 
 
+<a id="pcb_fit_test"></a>
+
+## pcb_fit_test
+
+<pre>
+load("@rules_brep//brep:defs.bzl", "pcb_fit_test")
+
+pcb_fit_test(<a href="#pcb_fit_test-name">name</a>, <a href="#pcb_fit_test-board">board</a>, <a href="#pcb_fit_test-board_placement">board_placement</a>, <a href="#pcb_fit_test-enclosure">enclosure</a>, <a href="#pcb_fit_test-expect">expect</a>, <a href="#pcb_fit_test-hole_tolerance_mm">hole_tolerance_mm</a>, <a href="#pcb_fit_test-min_clearance_mm">min_clearance_mm</a>,
+             <a href="#pcb_fit_test-overlap_epsilon_mm3">overlap_epsilon_mm3</a>)
+</pre>
+
+Checks that a circuit board fits its enclosure.
+
+```starlark
+pcb_fit_test(
+    name = "board_fit_test",
+    board = "@my_board//:step",        # kicad_step of rules_kicad, or any STEP
+    enclosure = ":enclosure",          # a cad_part
+    board_placement = '{"pos": [0, 0, 4]}',
+    min_clearance_mm = "0.5",
+)
+```
+
+The board is placed in the enclosure (`board_placement`: `pos` in mm and
+`rot` in degrees, intrinsic X-Y-Z, as in `cad_assembly`), and the test
+checks three things, listing each that fails:
+
+* **Fit:** the board and the enclosure share no more than
+  `overlap_epsilon_mm3` of volume. Resting on supports is touching, not
+  overlapping.
+* **Clearance:** the board's outline (its side faces, not its holes) is at
+  least `min_clearance_mm` from the enclosure's material beside it, between
+  the board's bottom and top. Supports under or over the board do not
+  count.
+* **Holes:** each mounting hole of the board (a hole along Z) has a mount
+  in the enclosure (a cylinder along Z: a boss's hole or a pin) whose
+  center is within `hole_tolerance_mm`. A moved hole fails.
+
+The geometry runs on the CAD toolchain; the checks are Go.
+`expect = "fail"` is for a known-bad fit (spec T3).
+
+**ATTRIBUTES**
+
+
+| Name  | Description | Type | Mandatory | Default |
+| :------------- | :------------- | :------------- | :------------- | :------------- |
+| <a id="pcb_fit_test-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
+| <a id="pcb_fit_test-board"></a>board |  The board: a target that names one STEP file (such as rules_kicad's `kicad_step`), or a `cad_part`. Its holes run along Z.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+| <a id="pcb_fit_test-board_placement"></a>board_placement |  Where the board sits in the enclosure, as JSON: {"pos": [x, y, z], "rot": [rx, ry, rz]}.   | String | optional |  `"{}"`  |
+| <a id="pcb_fit_test-enclosure"></a>enclosure |  The enclosure: a `cad_part`, or a target that names one STEP file.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+| <a id="pcb_fit_test-expect"></a>expect |  "pass", or "fail" for a known-bad fit.   | String | optional |  `"pass"`  |
+| <a id="pcb_fit_test-hole_tolerance_mm"></a>hole_tolerance_mm |  How far a mount's center may be from its hole's, mm.   | String | optional |  `"0.05"`  |
+| <a id="pcb_fit_test-min_clearance_mm"></a>min_clearance_mm |  The least distance from the board's outline to the enclosure, mm.   | String | required |  |
+| <a id="pcb_fit_test-overlap_epsilon_mm3"></a>overlap_epsilon_mm3 |  The shared volume that still counts as none, mm^3.   | String | optional |  `"0.001"`  |
+
+
 <a id="tool_toolchain"></a>
 
 ## tool_toolchain
