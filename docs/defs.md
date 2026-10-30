@@ -61,7 +61,8 @@ time `--@rules_brep//brep:source_date_epoch`.
 <pre>
 load("@rules_brep//brep:defs.bzl", "cad_check_test")
 
-cad_check_test(<a href="#cad_check_test-name">name</a>, <a href="#cad_check_test-expect">expect</a>, <a href="#cad_check_test-max_size">max_size</a>, <a href="#cad_check_test-max_volume">max_volume</a>, <a href="#cad_check_test-min_volume">min_volume</a>, <a href="#cad_check_test-min_wall">min_wall</a>, <a href="#cad_check_test-part">part</a>, <a href="#cad_check_test-wall_grid">wall_grid</a>)
+cad_check_test(<a href="#cad_check_test-name">name</a>, <a href="#cad_check_test-expect">expect</a>, <a href="#cad_check_test-expect_failing">expect_failing</a>, <a href="#cad_check_test-max_size">max_size</a>, <a href="#cad_check_test-max_volume">max_volume</a>, <a href="#cad_check_test-min_volume">min_volume</a>, <a href="#cad_check_test-min_wall">min_wall</a>, <a href="#cad_check_test-part">part</a>,
+               <a href="#cad_check_test-wall_grid">wall_grid</a>)
 </pre>
 
 Checks a part against limits: volume, size, thinnest wall.
@@ -91,7 +92,8 @@ hold, with the value found. A value at a limit holds.
 
 Raising a limit so that a part passes needs a person (AGENTS.md rule 7).
 `expect = "fail"` is for a known-bad part (spec T3): the test then passes
-when a limit does not hold.
+when a limit does not hold; `expect_failing` names which, so the part
+fails for the reason it was made for.
 
 **ATTRIBUTES**
 
@@ -100,6 +102,7 @@ when a limit does not hold.
 | :------------- | :------------- | :------------- | :------------- | :------------- |
 | <a id="cad_check_test-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
 | <a id="cad_check_test-expect"></a>expect |  "pass", or "fail" for a known-bad part.   | String | optional |  `"pass"`  |
+| <a id="cad_check_test-expect_failing"></a>expect_failing |  With expect = "fail": the limits that must fail, and only they (min_volume, max_volume, max_size, min_wall).   | List of strings | optional |  `[]`  |
 | <a id="cad_check_test-max_size"></a>max_size |  The largest bounding box: X, Y, Z in mm.   | List of strings | optional |  `[]`  |
 | <a id="cad_check_test-max_volume"></a>max_volume |  The most volume, mm^3.   | String | optional |  `""`  |
 | <a id="cad_check_test-min_volume"></a>min_volume |  The least volume, mm^3.   | String | optional |  `""`  |

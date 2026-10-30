@@ -162,8 +162,24 @@ class MinWallTest(unittest.TestCase):
         self.assertNotIn("min_wall", run(step_of(s)))  # only with --min-wall
 
     def test_bad_grid(self):
-        with self.assertRaises(SystemExit):
-            measurer.main(["--step", "x", "--out", "y", "--min-wall", "-1"])
+        for g in ["-1", "101"]:
+            with self.assertRaises(SystemExit):
+                measurer.main(["--step", "x", "--out", "y", "--min-wall", g])
+
+    def test_no_wall(self):
+        # A lone face: no ray leaves a solid, so there is no wall.
+        from build123d import Rectangle
+
+        with self.assertRaises(measurer.MeasureError) as cm:
+            self.wall(Rectangle(10, 10))
+        self.assertIn("no wall found", str(cm.exception))
+
+    def test_two_touching_solids(self):
+        # Two cubes sharing a face: the shared face is measured once, and
+        # each cube's own thickness, 10 mm, is the wall.
+        from build123d import Box, Compound, Pos
+
+        self.assertAlmostEqual(10, self.wall(Compound([Box(10, 10, 10), Pos(10, 0, 0) * Box(10, 10, 10)])), places=6)
 
 
 if __name__ == "__main__":

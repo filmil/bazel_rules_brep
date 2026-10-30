@@ -34,6 +34,12 @@ func Parse(r io.Reader) (map[string][]float64, error) {
 		if len(f) == 0 {
 			continue
 		}
+		if len(f) == 1 {
+			return nil, fmt.Errorf("line %d: %s has no value", n, f[0])
+		}
+		if _, dup := m[f[0]]; dup {
+			return nil, fmt.Errorf("line %d: %s appears twice", n, f[0])
+		}
 		var vs []float64
 		for _, x := range f[1:] {
 			v, err := strconv.ParseFloat(x, 64)
@@ -61,19 +67,23 @@ func one(m map[string][]float64, key string) (float64, error) {
 	return v[0], nil
 }
 
-// Check returns each limit that does not hold, described.
-func Check(m map[string][]float64, l Limits) ([]string, error) {
-	var bad []string
+// Failure is a limit that does not hold: its name (min_volume,
+// max_volume, max_size, min_wall) and a description.
+type Failure struct{ Limit, Text string }
+
+// Check returns each limit that does not hold.
+func Check(m map[string][]float64, l Limits) ([]Failure, error) {
+	var bad []Failure
 	if l.MinVolume != nil || l.MaxVolume != nil {
 		v, err := one(m, "volume")
 		if err != nil {
 			return nil, err
 		}
 		if l.MinVolume != nil && v < *l.MinVolume {
-			bad = append(bad, fmt.Sprintf("volume %.6f mm^3 is below the minimum %g", v, *l.MinVolume))
+			bad = append(bad, Failure{"min_volume", fmt.Sprintf("volume %.6f mm^3 is below the minimum %g", v, *l.MinVolume)})
 		}
 		if l.MaxVolume != nil && v > *l.MaxVolume {
-			bad = append(bad, fmt.Sprintf("volume %.6f mm^3 is above the maximum %g", v, *l.MaxVolume))
+			bad = append(bad, Failure{"max_volume", fmt.Sprintf("volume %.6f mm^3 is above the maximum %g", v, *l.MaxVolume)})
 		}
 	}
 	if l.MaxSize != nil {
@@ -82,8 +92,12 @@ func Check(m map[string][]float64, l Limits) ([]string, error) {
 			return nil, fmt.Errorf("the measurements have no bounding box")
 		}
 		for i, axis := range []string{"X", "Y", "Z"} {
-			if size := hi[i] - lo[i]; size > l.MaxSize[i] {
-				bad = append(bad, fmt.Sprintf("size in %s %.6f mm is above the maximum %g", axis, size, l.MaxSize[i]))
+			size := hi[i] - lo[i]
+			if size < 0 {
+				return nil, fmt.Errorf("the bounding box's min %v is above its max %v in %s", lo[i], hi[i], axis)
+			}
+			if size > l.MaxSize[i] {
+				bad = append(bad, Failure{"max_size", fmt.Sprintf("size in %s %.6f mm is above the maximum %g", axis, size, l.MaxSize[i])})
 			}
 		}
 	}
@@ -93,7 +107,7 @@ func Check(m map[string][]float64, l Limits) ([]string, error) {
 			return nil, err
 		}
 		if w < *l.MinWall {
-			bad = append(bad, fmt.Sprintf("the thinnest wall, %.6f mm, is below the minimum %g", w, *l.MinWall))
+			bad = append(bad, Failure{"min_wall", fmt.Sprintf("the thinnest wall, %.6f mm, is below the minimum %g", w, *l.MinWall)})
 		}
 	}
 	return bad, nil
@@ -161,17 +175,41 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	var texts []string
+	failing := map[string]bool{}
+	for _, b := range bad {
+		texts = append(texts, b.Text)
+		failing[b.Limit] = true
+	}
 	switch expect := os.Getenv("CHECK_EXPECT"); expect {
 	case "", "pass":
 		if len(bad) > 0 {
-			return fmt.Errorf("%d limit(s) do not hold:\n  %s", len(bad), strings.Join(bad, "\n  "))
+			return fmt.Errorf("%d limit(s) do not hold:\n  %s", len(bad), strings.Join(texts, "\n  "))
 		}
 		fmt.Println("every limit holds")
 	case "fail":
 		if len(bad) == 0 {
 			return fmt.Errorf("expected a limit to fail; every limit holds")
 		}
-		fmt.Printf("as expected, %d limit(s) do not hold:\n  %s\n", len(bad), strings.Join(bad, "\n  "))
+		// CHECK_EXPECT_FAILING names the limits that must fail, and only
+		// they: a known-bad part fails for the reason it was made for.
+		if want := os.Getenv("CHECK_EXPECT_FAILING"); want != "" {
+			names := map[string]bool{}
+			for _, n := range strings.Split(want, ",") {
+				names[n] = true
+			}
+			for n := range names {
+				if !failing[n] {
+					return fmt.Errorf("expected %s to fail; it holds. Failing: %s", n, strings.Join(texts, "; "))
+				}
+			}
+			for n := range failing {
+				if !names[n] {
+					return fmt.Errorf("%s fails, but only %s were expected to: %s", n, want, strings.Join(texts, "; "))
+				}
+			}
+		}
+		fmt.Printf("as expected, %d limit(s) do not hold:\n  %s\n", len(bad), strings.Join(texts, "\n  "))
 	default:
 		return fmt.Errorf("CHECK_EXPECT=%q: want pass or fail", expect)
 	}

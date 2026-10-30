@@ -37,7 +37,11 @@ func TestCheck(t *testing.T) {
 	if err != nil || len(bad) != 5 {
 		t.Fatalf("tight: %v %v", bad, err)
 	}
-	all := strings.Join(bad, "\n")
+	var texts []string
+	for _, b := range bad {
+		texts = append(texts, b.Text)
+	}
+	all := strings.Join(texts, "\n")
 	for _, want := range []string{"below the minimum 6001", "above the maximum 5999", "size in X 10.000000", "size in Z 30.000000", "thinnest wall, 10.000000 mm"} {
 		if !strings.Contains(all, want) {
 			t.Errorf("no %q in %s", want, all)
@@ -48,8 +52,14 @@ func TestCheck(t *testing.T) {
 	if _, err := Check(m2, Limits{MinWall: f(1)}); err == nil {
 		t.Error("a missing min_wall must be an error")
 	}
-	if _, err := Parse(strings.NewReader("volume NaN\n")); err == nil {
-		t.Error("NaN must fail")
+	for _, bad := range []string{"volume NaN\n", "volume 1\nvolume 2\n", "volume\n"} {
+		if _, err := Parse(strings.NewReader(bad)); err == nil {
+			t.Errorf("Parse(%q): want an error", bad)
+		}
+	}
+	inverted, _ := Parse(strings.NewReader("min 5 0 0\nmax 1 1 1\n"))
+	if _, err := Check(inverted, Limits{MaxSize: []float64{10, 10, 10}}); err == nil {
+		t.Error("a min above the max must be an error")
 	}
 }
 
@@ -67,8 +77,12 @@ func TestRun(t *testing.T) {
 		{map[string]string{"CHECK_MAX_SIZE": "10 20"}, false},
 		{map[string]string{"CHECK_MIN_WALL": "NaN"}, false},
 		{map[string]string{"CHECK_EXPECT": "maybe"}, false},
+		// The named limits, and only they, must fail.
+		{map[string]string{"CHECK_MAX_VOLUME": "5000", "CHECK_EXPECT": "fail", "CHECK_EXPECT_FAILING": "max_volume"}, true},
+		{map[string]string{"CHECK_MAX_VOLUME": "5000", "CHECK_EXPECT": "fail", "CHECK_EXPECT_FAILING": "min_wall"}, false},
+		{map[string]string{"CHECK_MAX_VOLUME": "5000", "CHECK_MIN_WALL": "11", "CHECK_EXPECT": "fail", "CHECK_EXPECT_FAILING": "max_volume"}, false},
 	} {
-		for _, k := range []string{"CHECK_MIN_VOLUME", "CHECK_MAX_VOLUME", "CHECK_MAX_SIZE", "CHECK_MIN_WALL", "CHECK_EXPECT"} {
+		for _, k := range []string{"CHECK_MIN_VOLUME", "CHECK_MAX_VOLUME", "CHECK_MAX_SIZE", "CHECK_MIN_WALL", "CHECK_EXPECT", "CHECK_EXPECT_FAILING"} {
 			t.Setenv(k, c.env[k])
 		}
 		t.Setenv("CHECK_MEASURE", path)

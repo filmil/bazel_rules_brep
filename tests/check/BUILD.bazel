@@ -51,6 +51,7 @@ cad_check_test(
     name = "thin_rib_check_test",
     size = "small",
     expect = "fail",
+    expect_failing = ["min_wall"],
     min_wall = "1.5",
     part = ":thin_rib",
 )
@@ -60,6 +61,7 @@ cad_check_test(
     name = "too_long_check_test",
     size = "small",
     expect = "fail",
+    expect_failing = ["max_size"],
     max_size = [
         "35",
         "30",
@@ -72,7 +74,19 @@ cad_check_test(
     name = "too_heavy_check_test",
     size = "small",
     expect = "fail",
+    expect_failing = ["max_volume"],
     max_volume = "4000",
+    part = ":plate",
+)
+
+# Known bad: lighter than 4200 mm^3.
+cad_check_test(
+    name = "too_light_check_test",
+    size = "small",
+    expect = "fail",
+    expect_failing = ["min_volume"],
+    max_volume = "5000",
+    min_volume = "4200",
     part = ":plate",
 )
 
@@ -150,4 +164,35 @@ fails_test(
     size = "small",
     message = "wall_grid = 0: want 1 to 100",
     target_under_test = ":grid_zero",
+)
+
+cad_check_test(
+    name = "unknown_failing",
+    expect = "fail",
+    expect_failing = ["weight"],
+    max_volume = "1",
+    part = ":plate",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "unknown_failing_test",
+    size = "small",
+    message = "expect_failing has \"weight\"",
+    target_under_test = ":unknown_failing",
+)
+
+cad_check_test(
+    name = "failing_without_fail",
+    expect_failing = ["max_volume"],
+    max_volume = "1",
+    part = ":plate",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "failing_without_fail_test",
+    size = "small",
+    message = "expect_failing goes with expect = \"fail\"",
+    target_under_test = ":failing_without_fail",
 )

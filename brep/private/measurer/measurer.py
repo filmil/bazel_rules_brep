@@ -103,44 +103,61 @@ def measure(shape):
 def min_wall(shape, grid):
     """The thinnest wall of shape, sampled on a grid x grid per face (mm).
 
-    Returns None when no inward ray meets the solid again (a shape with no
-    solid, or only open faces).
+    Each face counts once, however many solids share it; internal and
+    reference faces (neither forward nor reversed) are skipped. A ray starts
+    a little inside the face (by more than the face's own tolerance, so it
+    does not meet the face it starts on) and runs along the inward normal;
+    the wall is the distance to the first place where the ray leaves the
+    solid. Returns None when no ray leaves it (no solid, or open faces).
     """
+    from OCP.BRep import BRep_Tool
     from OCP.BRepAdaptor import BRepAdaptor_Surface
     from OCP.BRepClass import BRepClass_FaceClassifier
     from OCP.BRepLProp import BRepLProp_SLProps
     from OCP.BRepTools import BRepTools
+    from OCP.collections import IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher
     from OCP.gp import gp_Dir, gp_Lin, gp_Pnt2d
+    from OCP.IntCurveSurface import IntCurveSurface_Out
     from OCP.IntCurvesFace import IntCurvesFace_ShapeIntersector
-    from OCP.TopAbs import TopAbs_FACE, TopAbs_IN, TopAbs_REVERSED
-    from OCP.TopExp import TopExp_Explorer
+    from OCP.TopAbs import TopAbs_FACE, TopAbs_FORWARD, TopAbs_IN, TopAbs_REVERSED
+    from OCP.TopExp import TopExp
     from OCP.TopoDS import TopoDS
 
     inter = IntCurvesFace_ShapeIntersector()
     inter.Load(shape, 1e-7)
+    faces = IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher()
+    TopExp.MapShapes_s(shape, TopAbs_FACE, faces)
     best = None
-    exp = TopExp_Explorer(shape, TopAbs_FACE)
-    while exp.More():
-        face = TopoDS.Face(exp.Current())
-        exp.Next()
+    for k in range(1, faces.Extent() + 1):
+        face = TopoDS.Face(faces.FindKey(k))
+        orient = face.Orientation()
+        if orient not in (TopAbs_FORWARD, TopAbs_REVERSED):
+            continue
+        start = max(1e-6, 10 * BRep_Tool.Tolerance_s(face))
         umin, umax, vmin, vmax = BRepTools.UVBounds_s(face)
         surf = BRepAdaptor_Surface(face)
+        props = BRepLProp_SLProps(surf, 1, 1e-9)
+        classifier = BRepClass_FaceClassifier()
         for i in range(grid):
             for j in range(grid):
                 u = umin + (i + 0.5) / grid * (umax - umin)
                 v = vmin + (j + 0.5) / grid * (vmax - vmin)
-                if BRepClass_FaceClassifier(face, gp_Pnt2d(u, v), 1e-7).State() != TopAbs_IN:
+                classifier.Perform(face, gp_Pnt2d(u, v), 1e-7)
+                if classifier.State() != TopAbs_IN:
                     continue
-                props = BRepLProp_SLProps(surf, u, v, 1, 1e-7)
+                props.SetParameters(u, v)
                 if not props.IsNormalDefined():
                     continue
                 n = props.Normal()
                 # The normal of the surface points out of the solid unless
                 # the face is reversed.
-                inward = n if face.Orientation() == TopAbs_REVERSED else n.Reversed()
-                inter.PerformNearest(gp_Lin(props.Value(), gp_Dir(inward.XYZ())), 1e-6, 1e100)
-                if inter.IsDone() and inter.NbPnt() > 0:
-                    t = inter.WParameter(1)
+                inward = n if orient == TopAbs_REVERSED else n.Reversed()
+                inter.Perform(gp_Lin(props.Value(), gp_Dir(inward.XYZ())), start, 1e100)
+                if not inter.IsDone():
+                    continue
+                exits = [inter.WParameter(h) for h in range(1, inter.NbPnt() + 1) if inter.Transition(h) == IntCurveSurface_Out]
+                if exits:
+                    t = min(exits)
                     if best is None or t < best:
                         best = t
     return best
