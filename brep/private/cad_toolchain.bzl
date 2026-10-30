@@ -12,8 +12,12 @@ def _cad_toolchain_impl(ctx):
     return [platform_common.ToolchainInfo(
         tools = {"runner": ctx.attr.runner[DefaultInfo].files_to_run},
         # run_tool passes these to the runner: no .pyc files written beside
-        # the sources, and the same hash seed in every run.
+        # the sources, the same hash seed in every run, and one thread in
+        # the numeric libraries, so a sum is added up in the same order.
         env = {
+            "MKL_NUM_THREADS": "1",
+            "OMP_NUM_THREADS": "1",
+            "OPENBLAS_NUM_THREADS": "1",
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONHASHSEED": "0",
         },

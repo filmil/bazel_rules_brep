@@ -1,9 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 load("@brep_pip//:requirements.bzl", "requirement")
 load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
 
 # The CAD runner (issue #7), on the hermetic Python 3.12 of rules_python,
 # with build123d and OCP from wheels locked in requirements_lock.txt.
+py_library(
+    name = "runner_lib",
+    srcs = ["runner.py"],
+    imports = ["."],
+    deps = [requirement("build123d")],
+)
+
 py_binary(
     name = "runner",
     srcs = ["runner.py"],
@@ -12,4 +21,17 @@ py_binary(
     python_version = "3.12",
     visibility = ["//brep/toolchains:__pkg__"],
     deps = [requirement("build123d")],
+)
+
+py_test(
+    name = "runner_test",
+    size = "small",
+    srcs = ["runner_test.py"],
+    data = glob(["testdata/*.py"]),
+    legacy_create_init = False,
+    python_version = "3.12",
+    deps = [
+        ":runner_lib",
+        requirement("build123d"),
+    ],
 )

@@ -94,3 +94,12 @@ toolchain(
     toolchain = ":cad_stub_impl",
     toolchain_type = "//brep:toolchain_type",
 )
+
+# Any other execution platform, for the CAD toolchain type: registered last,
+# so it is picked only where the ones above do not match, and its analysis
+# says which platform is supported (spec P1).
+toolchain(
+    name = "cad_unsupported",
+    toolchain = ":unsupported_impl",
+    toolchain_type = "//brep:toolchain_type",
+)

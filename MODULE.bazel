@@ -23,8 +23,8 @@ bazel_dep(name = "rules_python", version = "2.4.6")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
-    # A dependency's tag here would not count; rules_brep's own interpreter
-    # is set where it is used, by python_version on pip.parse.
+    # Registers the 3.12 interpreter. Not the default: that is the root
+    # module's choice. The runner picks 3.12 by its python_version.
     is_default = False,
     python_version = "3.12",
 )
@@ -43,7 +43,8 @@ register_toolchains(
     "//brep/toolchains:cad",
     "//brep/toolchains:cad_stub",
     "//brep/toolchains:helpers",
-    # Last, so it is picked only off Linux x86_64 (spec P1).
+    # Last, so they are picked only off Linux x86_64 (spec P1).
+    "//brep/toolchains:cad_unsupported",
     "//brep/toolchains:unsupported",
 )
 

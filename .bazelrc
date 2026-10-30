@@ -22,5 +22,11 @@ build --sandbox_default_allow_network=false
 common --incompatible_enable_proto_toolchain_resolution
 common --@protobuf//bazel/toolchains:prefer_prebuilt_protoc
 
+# rules_python's default bootstrap starts every py_binary with
+# `#!/usr/bin/env python3`, the host's Python; "script" starts the hermetic
+# interpreter instead (the CAD runner, issue #7, and rules_python's own
+# wheel tools).
+common --@rules_python//python/config_settings:bootstrap_impl=script
+
 # Add your local user settings to file `user.bazelrc`.
 try-import %workspace%/user.bazelrc

@@ -35,7 +35,19 @@ common --registry=https://bcr.bazel.build
 The rules are documented in [docs/defs.md](docs/defs.md).
 
 The CAD runner is Python (build123d and OCCT) on the hermetic interpreter
-of rules_python; rules_brep registers it. Under Bazel 8, rules_python asks
+of rules_python; rules_brep registers it. Add this to `.bazelrc`, or
+rules_python starts it through the host's `python3`:
+
+```
+common --@rules_python//python/config_settings:bootstrap_impl=script
+```
+
+and, so that the flag's label resolves, to `MODULE.bazel`:
+
+```starlark
+bazel_dep(name = "rules_python", version = "2.4.6")
+```
+ Under Bazel 8, rules_python asks
 for a C++ toolchain even though nothing is compiled, so a build that finds
 none on the host needs one, such as hermetic_cc_toolchain (see
 `integration/MODULE.bazel`). Bazel 9 does not ask.
