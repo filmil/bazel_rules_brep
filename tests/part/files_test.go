@@ -27,7 +27,7 @@ func read(t *testing.T, suffix string) []byte {
 		}
 	}
 	if rpath == "" {
-		t.Fatalf("no output ends in %s: %s", suffix, *files)
+		t.Fatalf("no output ends in %s: %s %v", suffix, *files, flag.Args())
 	}
 	p, err := runfiles.Rlocation(rpath)
 	if err != nil {

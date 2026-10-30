@@ -32,7 +32,8 @@ cad_part(
 )
 ```
 
-The script defines `build(params: dict)`, which returns a build123d solid.
+The script defines `build(params: dict)`, which returns a build123d solid
+(or a compound of solids).
 It runs with build123d and OCCT on the CAD toolchain.
 
 * `<name>.step` names the shape `<name>`, and its header time is
@@ -48,7 +49,7 @@ It runs with build123d and OCCT on the CAD toolchain.
 | Name  | Description | Type | Mandatory | Default |
 | :------------- | :------------- | :------------- | :------------- | :------------- |
 | <a id="cad_part-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
-| <a id="cad_part-deps"></a>deps |  Python files the script imports, from its own directory.   | <a href="https://bazel.build/concepts/labels">List of labels</a> | optional |  `[]`  |
+| <a id="cad_part-deps"></a>deps |  Python files the script imports; each one's directory is on the import path.   | <a href="https://bazel.build/concepts/labels">List of labels</a> | optional |  `[]`  |
 | <a id="cad_part-src"></a>src |  The part script.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
 | <a id="cad_part-params"></a>params |  Parameters for `build(params)`. Each value is JSON: `"3"` is the number 3, `'"steel"'` the string steel, `"true"` a boolean.   | <a href="https://bazel.build/rules/lib/core/dict">Dictionary: String -> String</a> | optional |  `{}`  |
 | <a id="cad_part-stl_angular_tolerance"></a>stl_angular_tolerance |  The STL mesh's angular deflection, in radians.   | String | optional |  `"0.1"`  |

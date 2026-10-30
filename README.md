@@ -39,7 +39,7 @@ load("@rules_brep//brep:defs.bzl", "cad_part")
 
 cad_part(
     name = "bracket",
-    src = "bracket.py",  # defines build(params) -> a build123d solid
+    src = "bracket.py",  # build(params) returns a solid, or a compound of solids
     params = {"thickness": "3"},
 )
 ```

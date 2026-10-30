@@ -71,6 +71,36 @@ cad_part(
 fails_test(
     name = "bad_tolerance_test",
     size = "small",
-    message = "STL tolerances must be positive",
+    message = "STL tolerances must be positive and finite",
     target_under_test = ":bad_tolerance",
+)
+
+cad_part(
+    name = "infinite_tolerance",
+    src = "bracket.py",
+    stl_angular_tolerance = "inf",
+    tags = ["manual"],
+    deps = ["dims.py"],
+)
+
+fails_test(
+    name = "infinite_tolerance_test",
+    size = "small",
+    message = "stl_angular_tolerance = \"inf\" is not a number",
+    target_under_test = ":infinite_tolerance",
+)
+
+cad_part(
+    name = "text_tolerance",
+    src = "bracket.py",
+    stl_tolerance = "abc",
+    tags = ["manual"],
+    deps = ["dims.py"],
+)
+
+fails_test(
+    name = "text_tolerance_test",
+    size = "small",
+    message = "is not a number",
+    target_under_test = ":text_tolerance",
 )

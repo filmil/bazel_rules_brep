@@ -74,14 +74,24 @@ class RunnerTest(unittest.TestCase):
 
 
 class ExportTest(unittest.TestCase):
-    def export(self, epoch="0"):
-        d = tempfile.mkdtemp()
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        old = os.environ.get("SOURCE_DATE_EPOCH")
+
+        def restore():
+            if old is None:
+                os.environ.pop("SOURCE_DATE_EPOCH", None)
+            else:
+                os.environ["SOURCE_DATE_EPOCH"] = old
+
+        self.addCleanup(restore)
+
+    def export(self, epoch="0", extra=(), part_name="good.py"):
+        d = tempfile.mkdtemp(dir=self.tmp.name)
         step, stl = os.path.join(d, "x.step"), os.path.join(d, "x.stl")
         os.environ["SOURCE_DATE_EPOCH"] = epoch
-        try:
-            runner.main(["--part", part("good.py"), "--name", "bracket", "--step", step, "--stl", stl])
-        finally:
-            del os.environ["SOURCE_DATE_EPOCH"]
+        runner.main(["--part", part(part_name), "--name", "bracket", "--step", step, "--stl", stl] + list(extra))
         with open(step, "rb") as f:
             step_bytes = f.read()
         with open(stl, "rb") as f:
@@ -89,8 +99,8 @@ class ExportTest(unittest.TestCase):
         return d, step_bytes, stl_bytes
 
     def test_same_bytes_twice(self):
-        d1, step1, stl1 = self.export()
-        d2, step2, stl2 = self.export()
+        _, step1, stl1 = self.export()
+        _, step2, stl2 = self.export()
         self.assertEqual(step1, step2)
         self.assertEqual(stl1, stl2)
 
@@ -101,19 +111,38 @@ class ExportTest(unittest.TestCase):
         self.assertIn("FILE_NAME('bracket','1970-01-01T00:00:00'", text)
         self.assertIn("build123d", text)
         self.assertNotIn(d, text)  # no path of the build
+        self.assertNotIn(self.tmp.name, text)
 
     def test_epoch(self):
         _, step, _ = self.export(epoch="86400")
         self.assertIn("'1970-01-02T00:00:00'", step.decode("latin-1"))
-        with self.assertRaises(runner.PartError):
-            self.export(epoch="soon")
+        for bad in ["soon", "-1"]:
+            with self.assertRaises(runner.PartError) as cm:
+                self.export(epoch=bad)
+            self.assertIn("good.py", str(cm.exception))
 
     def test_stl(self):
-        _, _, stl = self.export()
+        d, _, stl = self.export()
         # Binary STL: an 80-byte header, a triangle count, 50 bytes each.
         n = int.from_bytes(stl[80:84], "little")
         self.assertGreaterEqual(n, 12)  # a box has at least 12 triangles
         self.assertEqual(84 + 50 * n, len(stl))
+        self.assertNotIn(self.tmp.name.encode(), stl[:80])  # no path in the header
+
+    def test_bad_tolerances(self):
+        for flag, v in [("--stl-tolerance", "nan"), ("--stl-angular-tolerance", "0"), ("--stl-angular-tolerance", "inf")]:
+            with self.assertRaises(runner.PartError) as cm:
+                self.export(extra=[flag, v])
+            self.assertIn("positive and finite", str(cm.exception))
+
+    def test_dependency_from_another_directory(self):
+        # uses_helper.py imports helper, which is in testdata/lib, given by
+        # --path. Without it first: once imported, helper stays in this
+        # process (a build runs the runner afresh for each part).
+        with self.assertRaises(runner.PartError):
+            self.export(part_name="uses_helper.py")
+        _, step, _ = self.export(extra=["--path", os.path.join(D, "lib")], part_name="uses_helper.py")
+        self.assertTrue(step.startswith(b"ISO-10303-21;"))
 
 
 if __name__ == "__main__":

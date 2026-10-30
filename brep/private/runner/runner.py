@@ -5,7 +5,7 @@ Usage:
 
     runner --part PART.py [--params JSON] [--summary OUT]
            [--name NAME] [--step OUT.step] [--stl OUT.stl]
-           [--stl-tolerance MM] [--stl-angular-tolerance RAD]
+           [--stl-tolerance MM] [--stl-angular-tolerance RAD] [--path DIR]...
 
 PART.py defines `build(params: dict)`, which returns a build123d shape.
 The runner imports it, calls it with the parameters, and checks that the
@@ -30,6 +30,7 @@ import datetime
 import importlib.util
 import io
 import json
+import math
 import os
 import sys
 import traceback
@@ -99,17 +100,21 @@ def epoch_timestamp():
     return datetime.datetime.fromtimestamp(t, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
 
-def write_step(shape, name, path):
-    """Writes shape as STEP, named name, at the SOURCE_DATE_EPOCH time.
+def write_step(shape, name, path, timestamp):
+    """Writes shape as STEP, named name, at timestamp.
 
     It writes to memory first, so that no file path of the build reaches the
-    header.
+    header. The shape's label is the name only while it is written.
     """
     from build123d import export_step
 
+    old = shape.label
     shape.label = name
-    buf = io.BytesIO()
-    export_step(shape, buf, timestamp=epoch_timestamp())
+    try:
+        buf = io.BytesIO()
+        export_step(shape, buf, timestamp=timestamp)
+    finally:
+        shape.label = old
     with open(path, "wb") as f:
         f.write(buf.getvalue())
 
@@ -121,16 +126,19 @@ def write_stl(shape, path, tolerance, angular_tolerance):
     triangles differently from run to run.
     """
     from OCP.BRepMesh import BRepMesh_IncrementalMesh
+    from OCP.BRepTools import BRepTools
     from OCP.StlAPI import StlAPI_Writer
 
+    # Drop any triangulation the part script made, maybe in parallel; the
+    # constructor meshes once, with parallel meshing off.
+    BRepTools.Clean_s(shape.wrapped)
     mesh = BRepMesh_IncrementalMesh(shape.wrapped, tolerance, False, angular_tolerance, False)
-    mesh.Perform()
     if not mesh.IsDone():
         raise PartError("meshing for STL failed")
     writer = StlAPI_Writer()
     writer.ASCIIMode = False
     if not writer.Write(shape.wrapped, path):
-        raise PartError("writing %s failed" % path)
+        raise PartError("writing the STL failed")
 
 
 def main(argv):
@@ -143,7 +151,21 @@ def main(argv):
     p.add_argument("--stl", help="write the shape as binary STL here")
     p.add_argument("--stl-tolerance", type=float, default=0.001, help="the STL mesh's linear deflection, mm")
     p.add_argument("--stl-angular-tolerance", type=float, default=0.1, help="the STL mesh's angular deflection, radians")
+    p.add_argument("--path", action="append", default=[], help="a directory to import the part's dependencies from")
     a = p.parse_args(argv)
+    try:
+        run(a)
+    except PartError as e:
+        # Every message names the part script.
+        if str(e).startswith(a.part):
+            raise
+        raise PartError("%s: %s" % (a.part, e)) from None
+
+
+def run(a):
+    """Builds the part and writes what the arguments ask for."""
+    for d in reversed(a.path):
+        sys.path.insert(0, os.path.abspath(d))
     try:
         params = json.loads(a.params)
     except json.JSONDecodeError as e:
@@ -155,10 +177,11 @@ def main(argv):
         with open(a.summary, "w", encoding="utf-8") as f:
             f.write(summary(shape))
     if a.step:
-        write_step(shape, a.name, a.step)
+        write_step(shape, a.name, a.step, epoch_timestamp())
     if a.stl:
-        if a.stl_tolerance <= 0 or a.stl_angular_tolerance <= 0:
-            raise PartError("%s: the STL tolerances must be positive" % a.part)
+        for t in [a.stl_tolerance, a.stl_angular_tolerance]:
+            if not math.isfinite(t) or t <= 0:
+                raise PartError("%s: the STL tolerances must be positive and finite" % a.part)
         write_stl(shape, a.stl, a.stl_tolerance, a.stl_angular_tolerance)
 
 
