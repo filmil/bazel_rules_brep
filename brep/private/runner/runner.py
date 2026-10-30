@@ -173,64 +173,115 @@ def _common_volume(a, b):
     return total
 
 
-def _z_cylinders(shape):
-    """Each cylinder along Z in shape: (x, y, radius, axis in material?).
+# A mount counts when it comes within this of the board's bottom or top, mm:
+# a boss under the board touches it, a pin runs through it.
+_MOUNT_REACH = 0.1
 
-    A cylinder split into several faces counts once.
+
+def _z_cylinders(shape):
+    """Each whole cylinder along Z in shape, as a dict.
+
+    Keys: x, y, r, inside (is the axis in the material: a pin or a solid
+    boss, not a hole), zmin, zmax. A cylinder split into several faces counts
+    once. A partial cylinder (a fillet, an edge notch, the arc of a slot)
+    is no hole and no mount, so it is left out.
     """
+    import math
+
     from OCP.BRepAdaptor import BRepAdaptor_Surface
     from OCP.BRepClass3d import BRepClass3d_SolidClassifier
-    from OCP.GeomAbs import GeomAbs_Cylinder
-    from OCP.gp import gp_Pnt
+    from OCP.BRepTools import BRepTools
     from OCP.Bnd import Bnd_Box
     from OCP.BRepBndLib import BRepBndLib
+    from OCP.collections import IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher
+    from OCP.GeomAbs import GeomAbs_Cylinder
+    from OCP.gp import gp_Pnt
     from OCP.TopAbs import TopAbs_FACE, TopAbs_IN
-    from OCP.TopExp import TopExp_Explorer
+    from OCP.TopExp import TopExp
     from OCP.TopoDS import TopoDS
 
+    faces = IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher()
+    TopExp.MapShapes_s(shape, TopAbs_FACE, faces)
     found = {}
-    exp = TopExp_Explorer(shape, TopAbs_FACE)
-    while exp.More():
-        face = TopoDS.Face(exp.Current())
-        exp.Next()
+    for k in range(1, faces.Extent() + 1):
+        face = TopoDS.Face(faces.FindKey(k))
         surf = BRepAdaptor_Surface(face)
         if surf.GetType() != GeomAbs_Cylinder:
             continue
         cyl = surf.Cylinder()
-        d = cyl.Axis().Direction()
-        if abs(d.Z()) < 0.999999:
+        if abs(cyl.Axis().Direction().Z()) < 0.999999:
             continue
         loc, r = cyl.Location(), cyl.Radius()
         key = (round(loc.X(), 6), round(loc.Y(), 6), round(r, 6))
-        if key in found:
-            continue
-        # The face's middle height: is the axis there inside the material?
+        umin, umax, _, _ = BRepTools.UVBounds_s(face)
         box = Bnd_Box()
-        BRepBndLib.Add_s(face, box)
-        zmid = (box.CornerMin().Z() + box.CornerMax().Z()) / 2
-        cls = BRepClass3d_SolidClassifier(shape, gp_Pnt(loc.X(), loc.Y(), zmid), 1e-7)
-        found[key] = cls.State() == TopAbs_IN
-    return sorted((x, y, r, inside) for (x, y, r), inside in found.items())
+        BRepBndLib.Add_s(face, box, False)
+        z0, z1 = box.CornerMin().Z(), box.CornerMax().Z()
+        c = found.setdefault(key, {"x": loc.X(), "y": loc.Y(), "r": r, "turn": 0.0, "zmin": z0, "zmax": z1, "face": face})
+        c["turn"] += umax - umin
+        c["zmin"], c["zmax"] = min(c["zmin"], z0), max(c["zmax"], z1)
+    out = []
+    for key in sorted(found):
+        c = found[key]
+        if c["turn"] < 2 * math.pi - 1e-6:
+            continue
+        zmid = (c["zmin"] + c["zmax"]) / 2
+        cls = BRepClass3d_SolidClassifier(shape, gp_Pnt(c["x"], c["y"], zmid), 1e-7)
+        out.append({"x": c["x"], "y": c["y"], "r": c["r"], "inside": cls.State() == TopAbs_IN, "zmin": c["zmin"], "zmax": c["zmax"]})
+    return out
 
 
-def _outline(shape):
+def _substrate(board):
+    """The board itself, without the parts on it: of the board's solids,
+    the one with the largest footprint in XY (then the largest volume).
+
+    A kicad_step holds the board and a body for each part; only the board
+    has the outline and the mounting holes.
+    """
+    from OCP.BRepGProp import BRepGProp
+    from OCP.GProp import GProp_GProps
+
+    best, best_key = None, None
+    for solid, box in _solids(board):
+        lo, hi = box.CornerMin(), box.CornerMax()
+        props = GProp_GProps()
+        BRepGProp.VolumeProperties_s(solid, props)
+        k = ((hi.X() - lo.X()) * (hi.Y() - lo.Y()), abs(props.Mass()))
+        if best_key is None or k > best_key:
+            best, best_key = solid, k
+    if best is None:
+        raise PartError("the board has no solid")
+    return best
+
+
+def _z_range(shape):
+    from OCP.Bnd import Bnd_Box
+    from OCP.BRepBndLib import BRepBndLib
+
+    box = Bnd_Box()
+    BRepBndLib.AddOptimal_s(shape, box, False, False)
+    return box.CornerMin().Z(), box.CornerMax().Z()
+
+
+def _outline(shape, holes):
     """The board's outline: its faces that are not flat along XY, nor holes."""
     from OCP.BRep import BRep_Builder
     from OCP.BRepAdaptor import BRepAdaptor_Surface
+    from OCP.collections import IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher
     from OCP.GeomAbs import GeomAbs_Cylinder, GeomAbs_Plane
     from OCP.TopAbs import TopAbs_FACE
-    from OCP.TopExp import TopExp_Explorer
+    from OCP.TopExp import TopExp
     from OCP.TopoDS import TopoDS, TopoDS_Compound
 
-    holes = {(round(x, 6), round(y, 6), round(r, 6)) for x, y, r, inside in _z_cylinders(shape) if not inside}
+    keys = {(round(h["x"], 6), round(h["y"], 6), round(h["r"], 6)) for h in holes}
     comp = TopoDS_Compound()
     builder = BRep_Builder()
     builder.MakeCompound(comp)
     n = 0
-    exp = TopExp_Explorer(shape, TopAbs_FACE)
-    while exp.More():
-        face = TopoDS.Face(exp.Current())
-        exp.Next()
+    faces = IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher()
+    TopExp.MapShapes_s(shape, TopAbs_FACE, faces)
+    for k in range(1, faces.Extent() + 1):
+        face = TopoDS.Face(faces.FindKey(k))
         surf = BRepAdaptor_Surface(face)
         t = surf.GetType()
         if t == GeomAbs_Plane and abs(surf.Plane().Axis().Direction().Z()) > 0.999999:
@@ -238,7 +289,7 @@ def _outline(shape):
         if t == GeomAbs_Cylinder:
             c = surf.Cylinder()
             loc = c.Location()
-            if (round(loc.X(), 6), round(loc.Y(), 6), round(c.Radius(), 6)) in holes:
+            if (round(loc.X(), 6), round(loc.Y(), 6), round(c.Radius(), 6)) in keys:
                 continue
         builder.Add(comp, face)
         n += 1
@@ -247,26 +298,29 @@ def _outline(shape):
     return comp
 
 
-def _slab(enclosure, board):
+def _slab(enclosure, zlo, zhi, holes):
     """The enclosure's material at the board's height, or None.
 
     The slab runs from just above the board's bottom to just below its top,
-    so a boss under the board or a lid over it is left out.
+    so a boss under the board or a lid over it is left out. What stands in
+    the board's holes (a pin, a screw) is left out too: it is a mount, not
+    a wall.
     """
-    from OCP.Bnd import Bnd_Box
-    from OCP.BRepAlgoAPI import BRepAlgoAPI_Common
-    from OCP.BRepBndLib import BRepBndLib
-    from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox
-    from OCP.gp import gp_Pnt
+    from OCP.BRepAlgoAPI import BRepAlgoAPI_Common, BRepAlgoAPI_Cut
+    from OCP.BRepPrimAPI import BRepPrimAPI_MakeBox, BRepPrimAPI_MakeCylinder
+    from OCP.gp import gp_Ax2, gp_Dir, gp_Pnt
     from OCP.TopAbs import TopAbs_SOLID
     from OCP.TopExp import TopExp_Explorer
 
-    box = Bnd_Box()
-    BRepBndLib.AddOptimal_s(board, box, False, False)
-    lo, hi = box.CornerMin(), box.CornerMax()
-    eps = min(1e-4, (hi.Z() - lo.Z()) / 4)
+    eps = min(1e-4, (zhi - zlo) / 4)
     big = 1e5
-    slab = BRepPrimAPI_MakeBox(gp_Pnt(lo.X() - big, lo.Y() - big, lo.Z() + eps), gp_Pnt(hi.X() + big, hi.Y() + big, hi.Z() - eps)).Shape()
+    slab = BRepPrimAPI_MakeBox(gp_Pnt(-big, -big, zlo + eps), gp_Pnt(big, big, zhi - eps)).Shape()
+    for h in holes:
+        axis = gp_Ax2(gp_Pnt(h["x"], h["y"], zlo - 1), gp_Dir(0, 0, 1))
+        cut = BRepAlgoAPI_Cut(slab, BRepPrimAPI_MakeCylinder(axis, h["r"] + 1e-4, zhi - zlo + 2).Shape())
+        if not cut.IsDone():
+            raise PartError("OCCT could not cut a hole out of the slab")
+        slab = cut.Shape()
     op = BRepAlgoAPI_Common(enclosure, slab)
     if not op.IsDone():
         raise PartError("OCCT could not cut the enclosure at the board's height")
@@ -275,39 +329,66 @@ def _slab(enclosure, board):
     return op.Shape()
 
 
+def _vec3(spec, key):
+    v = spec.get(key)
+    if not isinstance(v, list) or len(v) != 3 or not all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in v):
+        raise PartError("the spec's %s must be 3 numbers, got %r" % (key, v))
+    return tuple(float(x) for x in v)
+
+
 def fit(spec):
-    """The --fit report of the spec's board, placed in its enclosure."""
+    """The --fit report of the spec's board, placed in its enclosure.
+
+    Lines: overlap V; clearance D (inf when nothing of the enclosure is
+    beside the board); hole X Y R for each hole of the board; mount X Y R
+    KIND for each whole cylinder of the enclosure that reaches the board,
+    KIND "hole" (a boss's hole) or "pin".
+    """
     from build123d import Location, import_step
     from OCP.BRepExtrema import BRepExtrema_DistShapeShape
 
+    if not isinstance(spec, dict):
+        raise PartError("the spec must be a JSON object, got %s" % type(spec).__name__)
+    for key in ("board", "enclosure"):
+        if not isinstance(spec.get(key), str):
+            raise PartError("the spec's %s must be a file name" % key)
+    pos, rot = _vec3(spec, "pos"), _vec3(spec, "rot")
     try:
-        board_file, enclosure_file, pos, rot = spec["board"], spec["enclosure"], spec["pos"], spec["rot"]
-    except (KeyError, TypeError) as e:
-        raise PartError("the spec lacks %s" % e)
-    try:
-        board = import_step(board_file).moved(Location(tuple(pos), tuple(rot)))
-        enclosure = import_step(enclosure_file)
+        board = import_step(spec["board"]).moved(Location(pos, rot))
+        enclosure = import_step(spec["enclosure"])
     except Exception as e:
         raise PartError("reading the models failed: %s" % e)
+    # Everything on the board, parts included, must stay out of the
+    # enclosure.
     overlap = 0.0
     for sa, ba in _solids(board):
         for sb, bb in _solids(enclosure):
             if not ba.IsOut(bb):
                 overlap += _common_volume(sa, sb)
-    beside = _slab(enclosure.wrapped, board.wrapped)
+    sub = _substrate(board)
+    zlo, zhi = _z_range(sub)
+    holes = [c for c in _z_cylinders(sub) if not c["inside"]]
+    beside = _slab(enclosure.wrapped, zlo, zhi, holes)
     if beside is None:
         clearance = float("inf")
     else:
-        dist = BRepExtrema_DistShapeShape(_outline(board.wrapped), beside)
+        dist = BRepExtrema_DistShapeShape(_outline(sub, holes), beside)
         if not dist.IsDone():
             raise PartError("OCCT could not measure the clearance")
         clearance = dist.Value()
     lines = ["overlap\t%r\n" % overlap, "clearance\t%r\n" % clearance]
-    for x, y, r, inside in _z_cylinders(board.wrapped):
-        if not inside:
-            lines.append("hole\t%r\t%r\t%r\n" % (x, y, r))
-    for x, y, r, inside in _z_cylinders(enclosure.wrapped):
-        lines.append("mount\t%r\t%r\t%r\n" % (x, y, r))
+    for h in holes:
+        lines.append("hole\t%r\t%r\t%r\n" % (h["x"], h["y"], h["r"]))
+    for c in _z_cylinders(enclosure.wrapped):
+        if c["zmax"] < zlo - _MOUNT_REACH or c["zmin"] > zhi + _MOUNT_REACH:
+            continue  # far below or above the board
+        if c["inside"]:
+            # Solid: a pin if it rises into the board, else a solid boss
+            # (a support, not a mount).
+            if c["zmax"] > zlo + _MOUNT_REACH:
+                lines.append("mount\t%r\t%r\t%r\tpin\n" % (c["x"], c["y"], c["r"]))
+        else:
+            lines.append("mount\t%r\t%r\t%r\thole\n" % (c["x"], c["y"], c["r"]))
     return "".join(lines)
 
 

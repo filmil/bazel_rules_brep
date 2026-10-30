@@ -3,12 +3,15 @@
 // Command fitcheck is pcb_fit_test's checker (issue #14).
 //
 // It reads the runner's fit report (tab-separated lines: "overlap V",
-// "clearance D", "hole X Y R", "mount X Y R") and checks that:
+// "clearance D", "hole X Y R", "mount X Y R KIND" with KIND "hole" or
+// "pin") and checks that:
 //
 //   - the board and the enclosure share no more than FIT_EPSILON mm^3;
 //   - the board's outline keeps FIT_MIN_CLEARANCE mm from the enclosure;
-//   - every mounting hole has a mount (a boss's hole or a pin) whose
-//     center is within FIT_HOLE_TOLERANCE mm of the hole's.
+//   - the board has a mounting hole, and every one has a mount (a boss's
+//     hole for a screw, or a pin) whose center is within
+//     FIT_HOLE_TOLERANCE mm of the hole's and that is no wider than the
+//     hole (by more than the same tolerance).
 //
 // Every check that fails is listed. FIT_EXPECT is "pass" (the default), or
 // "fail" for a known-bad fit (spec T3). FIT_REPORT is the report's
@@ -27,8 +30,12 @@ import (
 	"github.com/bazelbuild/rules_go/go/runfiles"
 )
 
-// Circle is a hole or a mount: its center and radius, mm.
-type Circle struct{ X, Y, R float64 }
+// Circle is a hole or a mount: its center and radius, mm. Kind is a
+// mount's: "hole" (for a screw) or "pin".
+type Circle struct {
+	X, Y, R float64
+	Kind    string
+}
 
 // Report is a parsed fit report.
 type Report struct {
@@ -56,6 +63,8 @@ func Parse(r io.Reader) (Report, error) {
 		f := strings.Split(s.Text(), "\t")
 		bad := func(err error) error { return fmt.Errorf("line %d (%q): %v", n, s.Text(), err) }
 		switch {
+		case seen[f[0]] && (f[0] == "overlap" || f[0] == "clearance"):
+			return rep, bad(fmt.Errorf("%s appears twice", f[0]))
 		case f[0] == "overlap" && len(f) == 2:
 			v, err := finite(f[1], false)
 			if err != nil || v < 0 {
@@ -69,7 +78,7 @@ func Parse(r io.Reader) (Report, error) {
 				return rep, bad(fmt.Errorf("want a distance, 0 or more"))
 			}
 			rep.Clearance = v
-		case (f[0] == "hole" || f[0] == "mount") && len(f) == 4:
+		case (f[0] == "hole" && len(f) == 4) || (f[0] == "mount" && len(f) == 5):
 			var c [3]float64
 			for i := range c {
 				v, err := finite(f[i+1], false)
@@ -78,10 +87,16 @@ func Parse(r io.Reader) (Report, error) {
 				}
 				c[i] = v
 			}
+			if c[2] <= 0 {
+				return rep, bad(fmt.Errorf("a radius must be above 0"))
+			}
 			if f[0] == "hole" {
-				rep.Holes = append(rep.Holes, Circle{c[0], c[1], c[2]})
+				rep.Holes = append(rep.Holes, Circle{X: c[0], Y: c[1], R: c[2]})
 			} else {
-				rep.Mounts = append(rep.Mounts, Circle{c[0], c[1], c[2]})
+				if f[4] != "hole" && f[4] != "pin" {
+					return rep, bad(fmt.Errorf("a mount is a hole or a pin, not %q", f[4]))
+				}
+				rep.Mounts = append(rep.Mounts, Circle{X: c[0], Y: c[1], R: c[2], Kind: f[4]})
 			}
 		default:
 			return rep, bad(fmt.Errorf("not a fit report line"))
@@ -103,18 +118,37 @@ func Check(rep Report, epsilon, minClearance, holeTolerance float64) []string {
 	if rep.Clearance < minClearance {
 		bad = append(bad, fmt.Sprintf("the board's outline is %.6f mm from the enclosure, under the minimum %g", rep.Clearance, minClearance))
 	}
+	if len(rep.Holes) == 0 {
+		bad = append(bad, "the board has no mounting holes (whole holes along Z) to line up")
+	}
 	for _, h := range rep.Holes {
-		best := math.Inf(1)
+		best, wide := math.Inf(1), 0.0
 		for _, m := range rep.Mounts {
-			best = math.Min(best, math.Hypot(h.X-m.X, h.Y-m.Y))
-		}
-		if best > holeTolerance {
-			where := "no mount at all"
-			if !math.IsInf(best, 1) {
-				where = fmt.Sprintf("the nearest mount is %.6f mm off", best)
+			d := math.Hypot(h.X-m.X, h.Y-m.Y)
+			if d > holeTolerance {
+				best = math.Min(best, d)
+				continue
 			}
-			bad = append(bad, fmt.Sprintf("the hole at (%.6f, %.6f) has no mount within %g mm: %s", h.X, h.Y, holeTolerance, where))
+			if m.R > h.R+holeTolerance {
+				// On the axis, but too wide to go through the hole: the
+				// outside of a boss, say.
+				wide = math.Max(wide, m.R)
+				continue
+			}
+			best = -1
+			break
 		}
+		if best < 0 {
+			continue
+		}
+		where := "no mount at all"
+		switch {
+		case wide > 0:
+			where = fmt.Sprintf("the mount on its axis is %.6f mm in radius, wider than the hole's %.6f", wide, h.R)
+		case !math.IsInf(best, 1):
+			where = fmt.Sprintf("the nearest mount is %.6f mm off", best)
+		}
+		bad = append(bad, fmt.Sprintf("the hole at (%.6f, %.6f) has no mount within %g mm: %s", h.X, h.Y, holeTolerance, where))
 	}
 	return bad
 }
@@ -152,9 +186,6 @@ func run() error {
 	rep, err := Parse(f)
 	if err != nil {
 		return err
-	}
-	if len(rep.Holes) == 0 {
-		return fmt.Errorf("the board has no mounting holes to line up")
 	}
 	bad := Check(rep, eps, minClear, tol)
 	switch expect := os.Getenv("FIT_EXPECT"); expect {

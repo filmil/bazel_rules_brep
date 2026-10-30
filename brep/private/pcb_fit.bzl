@@ -30,10 +30,12 @@ def _placement(ctx):
     unknown = sorted([k for k in p.keys() if k not in ["pos", "rot"]])
     if unknown:
         fail("%s: board_placement has unknown keys %s; it takes pos and rot" % (ctx.label, unknown))
-    return (
-        _vec3(ctx, "board_placement.pos", p.get("pos", [0, 0, 0])),
-        _vec3(ctx, "board_placement.rot", p.get("rot", [0, 0, 0])),
-    )
+    pos = _vec3(ctx, "board_placement.pos", p.get("pos", [0, 0, 0]))
+    rot = _vec3(ctx, "board_placement.rot", p.get("rot", [0, 0, 0]))
+    for axis, a in zip(["X", "Y"], rot[:2]):
+        if a % 180 != 0:
+            fail("%s: board_placement turns the board %s degrees about %s; the board must lie flat (0 or 180 about X and Y)" % (ctx.label, a, axis))
+    return pos, rot
 
 def _rlocation(ctx, f):
     if f.short_path.startswith("../"):
@@ -98,19 +100,27 @@ pcb_fit_test(
 ```
 
 The board is placed in the enclosure (`board_placement`: `pos` in mm and
-`rot` in degrees, intrinsic X-Y-Z, as in `cad_assembly`), and the test
-checks three things, listing each that fails:
+`rot` in degrees, intrinsic X-Y-Z, as in `cad_assembly`). It must lie flat:
+about X and Y only 0 or 180 degrees, about Z any angle. The test checks
+three things, listing each that fails:
 
 * **Fit:** the board and the enclosure share no more than
   `overlap_epsilon_mm3` of volume. Resting on supports is touching, not
   overlapping.
 * **Clearance:** the board's outline (its side faces, not its holes) is at
   least `min_clearance_mm` from the enclosure's material beside it, between
-  the board's bottom and top. Supports under or over the board do not
-  count.
-* **Holes:** each mounting hole of the board (a hole along Z) has a mount
-  in the enclosure (a cylinder along Z: a boss's hole or a pin) whose
-  center is within `hole_tolerance_mm`. A moved hole fails.
+  the board's bottom and top. Supports under or over the board, and pins in
+  its holes, do not count.
+* **Holes:** the board has a mounting hole (a whole hole along Z; a notch or
+  a fillet is not one), and each has a mount in the enclosure: a whole
+  cylinder along Z that reaches the board (within 0.1 mm of its bottom or
+  top), a boss's hole or a pin, no wider than the hole, whose center is
+  within `hole_tolerance_mm`. A moved hole fails, and so does a solid boss
+  with no hole in it.
+
+The board may be a `kicad_step` with its parts on it. Its outline and holes
+come from the board itself, the solid with the largest footprint; every
+solid, parts included, counts for the overlap.
 
 The geometry runs on the CAD toolchain; the checks are Go.
 `expect = "fail"` is for a known-bad fit (spec T3).

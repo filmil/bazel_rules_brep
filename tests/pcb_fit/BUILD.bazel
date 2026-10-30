@@ -96,3 +96,19 @@ fails_test(
     message = "want a JSON object like",
     target_under_test = ":bad_placement",
 )
+
+pcb_fit_test(
+    name = "tilted",
+    board = ":board",
+    board_placement = '{"rot": [90, 0, 0]}',
+    enclosure = ":tray",
+    min_clearance_mm = "1",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "tilted_test",
+    size = "small",
+    message = "the board must lie flat",
+    target_under_test = ":tilted",
+)
