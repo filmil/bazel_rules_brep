@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """The shared libraries OCP loads that its wheel does not bundle (issue #7).
 
-OCP, OCCT's Python binding, links libGL.so.1 and libX11.so.6. Its
+OCP, OCCT's Python binding, links libGL.so.1, libX11.so.6 and
+libexpat.so.1. Its
 manylinux wheel leaves them to the host, as the manylinux policy allows,
 and a host without them cannot import build123d. Nothing here renders with
 OpenGL, but the loader needs them. They come from Debian 11 (the oldest
@@ -15,6 +16,7 @@ only when an OpenGL context is made; nothing makes one, so it is left out.
 # Package: (pool path, sha256). From the Debian 11 (bullseye) main index.
 _DEBS = {
     "libbsd0": ("pool/main/libb/libbsd/libbsd0_0.11.3-1+deb11u1_amd64.deb", "6ec5a08a4bb32c0dc316617f4bbefa8654c472d1cd4412ab8995f3955491f4a8"),
+    "libexpat1": ("pool/main/e/expat/libexpat1_2.2.10-2+deb11u5_amd64.deb", "5744040c4735bcdd51238aebfa3e402b857244897f1007f61154982ebe5abbd7"),
     "libgl1": ("pool/main/libg/libglvnd/libgl1_1.3.2-1_amd64.deb", "f300f9610b5f05f1ce566c4095f1bf2170e512ac5d201c40d895b8fce29dec98"),
     "libglvnd0": ("pool/main/libg/libglvnd/libglvnd0_1.3.2-1_amd64.deb", "52a4464d181949f5ed8f7e55cca67ba2739f019e93fcfa9d14e8d65efe98fffc"),
     "libglx0": ("pool/main/libg/libglvnd/libglx0_1.3.2-1_amd64.deb", "cb642200f7e28e6dbb4075110a0b441880eeec35c8a00a2198c59c53309e5e17"),
@@ -41,6 +43,7 @@ _SONAMES = [
     "libXau.so.6",
     "libXdmcp.so.6",
     "libbsd.so.0",
+    "libexpat.so.1",
     "libmd.so.0",
     "libxcb.so.1",
 ]

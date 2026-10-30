@@ -17,7 +17,7 @@ def preload_gl_libs():
     cannot set that for itself, as the loader reads it at start. A library
     already loaded under its soname satisfies OCP's link to it.
     """
-    order = ["libmd.so.0", "libbsd.so.0", "libXau.so.6", "libXdmcp.so.6", "libxcb.so.1",
+    order = ["libexpat.so.1", "libmd.so.0", "libbsd.so.0", "libXau.so.6", "libXdmcp.so.6", "libxcb.so.1",
              "libX11.so.6", "libGLdispatch.so.0", "libGLX.so.0", "libGL.so.1"]
     paths = {os.path.basename(p): p for p in os.environ["BREP_GL_LIBS"].split()}
     for name in order:
