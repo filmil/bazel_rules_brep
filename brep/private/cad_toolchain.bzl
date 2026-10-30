@@ -42,7 +42,7 @@ def _cad_toolchain_impl(ctx):
 
 cad_toolchain = rule(
     implementation = _cad_toolchain_impl,
-    doc = """The CAD toolchain, for `@rules_brep//brep:toolchain_type`.
+    doc = """The CAD toolchain, for `@hdlf_rules_brep//brep:toolchain_type`.
 
 Its tool, `runner --part PART.py [--params JSON] [--summary OUT]`, imports
 a part script, calls its `build(params)` function, and checks that the
@@ -51,7 +51,7 @@ result is a valid build123d shape. Its tool `renderer --step IN.step
 model as PNG, with no OpenGL. Its tool `measurer --step IN.step --out OUT.txt`
 writes a model's volume, area, center of mass, bounding box and counts of
 solids, faces, edges and vertices, one per line.
-rules_brep registers one on the
+hdlf_rules_brep registers one on the
 hermetic Python of rules_python, with build123d and OCP locked by hash,
 and the GL and X11 libraries OCP loads, from pinned Debian 11 packages.
 """,

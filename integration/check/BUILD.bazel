@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# cad_check_test from a module that depends on rules_brep (issue #12): the
+# cad_check_test from a module that depends on hdlf_rules_brep (issue #12): the
 # measurer with its min-wall measure and the Go checker, across the module
 # boundary.
-load("@rules_brep//brep:defs.bzl", "cad_check_test", "cad_part")
+load("@hdlf_rules_brep//brep:defs.bzl", "cad_check_test", "cad_part")
 
 cad_part(
     name = "plate",

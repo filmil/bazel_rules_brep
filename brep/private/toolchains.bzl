@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Providers and rules for the toolchains of rules_brep.
+"""Providers and rules for the toolchains of hdlf_rules_brep.
 
 Every tool an action or a test runs comes from a toolchain (spec section
 "Toolchains"). A tool toolchain returns `platform_common.ToolchainInfo`
@@ -49,7 +49,7 @@ helpers_toolchain = rule(
 )
 
 UNSUPPORTED_PLATFORM_MESSAGE = (
-    "rules_brep v1 supports only Linux x86_64 hosts (@platforms//os:linux, " +
+    "hdlf_rules_brep v1 supports only Linux x86_64 hosts (@platforms//os:linux, " +
     "@platforms//cpu:x86_64). This build's execution platform is another one. " +
     "See https://github.com/filmil/bazel_rules_brep#using-it"
 )
@@ -94,7 +94,7 @@ tool_toolchain(
 toolchain(
     name = "my_cad_runner",
     toolchain = ":my_cad_runner_impl",
-    toolchain_type = "@rules_brep//brep:toolchain_type",
+    toolchain_type = "@hdlf_rules_brep//brep:toolchain_type",
 )
 ```
 """,

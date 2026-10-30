@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# The e2e bracket measured by a module that depends on rules_brep: the
+# The e2e bracket measured by a module that depends on hdlf_rules_brep: the
 # measurer with OCP and the pinned GL libraries, and the Go checker, across
 # the module boundary (issue #11).
-load("@rules_brep//brep:defs.bzl", "geometry_equal_test")
+load("@hdlf_rules_brep//brep:defs.bzl", "geometry_equal_test")
 
 # The part against its own STEP file, named through a filegroup.
 filegroup(

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# pcb_fit_test from a module that depends on rules_brep (issue #14): a
+# pcb_fit_test from a module that depends on hdlf_rules_brep (issue #14): a
 # board in its tray. The board stands in for a kicad_step of rules_kicad,
 # which this module does not depend on.
-load("@rules_brep//brep:defs.bzl", "cad_part", "pcb_fit_test")
+load("@hdlf_rules_brep//brep:defs.bzl", "cad_part", "pcb_fit_test")
 
 cad_part(
     name = "board",

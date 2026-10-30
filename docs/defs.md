@@ -1,11 +1,11 @@
 <!-- Generated with Stardoc: http://skydoc.bazel.build -->
 
-Public API of rules_brep.
+Public API of hdlf_rules_brep.
 
 Load every rule from this file:
 
 ```starlark
-load("@rules_brep//brep:defs.bzl", "determinism_test", "swap_test", "tool_toolchain")
+load("@hdlf_rules_brep//brep:defs.bzl", "determinism_test", "swap_test", "tool_toolchain")
 ```
 
 The rules arrive in milestone M4 (see the issues of
@@ -17,7 +17,7 @@ entry point; everything under `//brep/private` may change without notice.
 ## cad_assembly
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "cad_assembly")
+load("@hdlf_rules_brep//brep:defs.bzl", "cad_assembly")
 
 cad_assembly(<a href="#cad_assembly-name">name</a>, <a href="#cad_assembly-parts">parts</a>)
 </pre>
@@ -43,7 +43,7 @@ when placed once (also from a list of one), and `<part>_1`, `<part>_2`,
 ... when placed more than once.
 
 The header is normalized as `cad_part`'s: the assembly's name, and the
-time `--@rules_brep//brep:source_date_epoch`.
+time `--@hdlf_rules_brep//brep:source_date_epoch`.
 
 **ATTRIBUTES**
 
@@ -59,7 +59,7 @@ time `--@rules_brep//brep:source_date_epoch`.
 ## cad_check_test
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "cad_check_test")
+load("@hdlf_rules_brep//brep:defs.bzl", "cad_check_test")
 
 cad_check_test(<a href="#cad_check_test-name">name</a>, <a href="#cad_check_test-expect">expect</a>, <a href="#cad_check_test-expect_failing">expect_failing</a>, <a href="#cad_check_test-max_size">max_size</a>, <a href="#cad_check_test-max_volume">max_volume</a>, <a href="#cad_check_test-min_volume">min_volume</a>, <a href="#cad_check_test-min_wall">min_wall</a>, <a href="#cad_check_test-part">part</a>,
                <a href="#cad_check_test-wall_grid">wall_grid</a>)
@@ -116,7 +116,7 @@ fails for the reason it was made for.
 ## cad_part
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "cad_part")
+load("@hdlf_rules_brep//brep:defs.bzl", "cad_part")
 
 cad_part(<a href="#cad_part-name">name</a>, <a href="#cad_part-deps">deps</a>, <a href="#cad_part-src">src</a>, <a href="#cad_part-library">library</a>, <a href="#cad_part-params">params</a>, <a href="#cad_part-stl_angular_tolerance">stl_angular_tolerance</a>, <a href="#cad_part-stl_tolerance">stl_tolerance</a>)
 </pre>
@@ -141,7 +141,7 @@ the CadQuery toolchain, with CadQuery 2.8 and its own OCCT. Its wheels (467
 MB, VTK among them) are fetched only for a build that has such a part.
 
 * `<name>.step` names the shape `<name>`, and its header time is
-  `--@rules_brep//brep:source_date_epoch` (default 1970-01-01).
+  `--@hdlf_rules_brep//brep:source_date_epoch` (default 1970-01-01).
 * `<name>.stl` is binary, meshed with parallel meshing off, so the same
   part gives the same bytes on the same platform. Across platforms the
   geometry may differ in the last digits; `geometry_equal_test` compares
@@ -166,7 +166,7 @@ MB, VTK among them) are fetched only for a build that has such a part.
 ## cad_render
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "cad_render")
+load("@hdlf_rules_brep//brep:defs.bzl", "cad_render")
 
 cad_render(<a href="#cad_render-name">name</a>, <a href="#cad_render-src">src</a>, <a href="#cad_render-size">size</a>, <a href="#cad_render-views">views</a>)
 </pre>
@@ -208,12 +208,12 @@ PNGs to its pull request (AGENTS.md, rule 5).
 ## cad_toolchain
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "cad_toolchain")
+load("@hdlf_rules_brep//brep:defs.bzl", "cad_toolchain")
 
 cad_toolchain(<a href="#cad_toolchain-name">name</a>, <a href="#cad_toolchain-libs">libs</a>, <a href="#cad_toolchain-measurer">measurer</a>, <a href="#cad_toolchain-python_version">python_version</a>, <a href="#cad_toolchain-renderer">renderer</a>, <a href="#cad_toolchain-runner">runner</a>)
 </pre>
 
-The CAD toolchain, for `@rules_brep//brep:toolchain_type`.
+The CAD toolchain, for `@hdlf_rules_brep//brep:toolchain_type`.
 
 Its tool, `runner --part PART.py [--params JSON] [--summary OUT]`, imports
 a part script, calls its `build(params)` function, and checks that the
@@ -222,7 +222,7 @@ result is a valid build123d shape. Its tool `renderer --step IN.step
 model as PNG, with no OpenGL. Its tool `measurer --step IN.step --out OUT.txt`
 writes a model's volume, area, center of mass, bounding box and counts of
 solids, faces, edges and vertices, one per line.
-rules_brep registers one on the
+hdlf_rules_brep registers one on the
 hermetic Python of rules_python, with build123d and OCP locked by hash,
 and the GL and X11 libraries OCP loads, from pinned Debian 11 packages.
 
@@ -244,7 +244,7 @@ and the GL and X11 libraries OCP loads, from pinned Debian 11 packages.
 ## geometry_equal_test
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "geometry_equal_test")
+load("@hdlf_rules_brep//brep:defs.bzl", "geometry_equal_test")
 
 geometry_equal_test(<a href="#geometry_equal_test-name">name</a>, <a href="#geometry_equal_test-a">a</a>, <a href="#geometry_equal_test-abs_tolerance">abs_tolerance</a>, <a href="#geometry_equal_test-b">b</a>, <a href="#geometry_equal_test-expect">expect</a>, <a href="#geometry_equal_test-rel_tolerance">rel_tolerance</a>)
 </pre>
@@ -290,7 +290,7 @@ volume and box miss, such as a hole that moved.
 ## interference_test
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "interference_test")
+load("@hdlf_rules_brep//brep:defs.bzl", "interference_test")
 
 interference_test(<a href="#interference_test-name">name</a>, <a href="#interference_test-assembly">assembly</a>, <a href="#interference_test-epsilon_mm3">epsilon_mm3</a>, <a href="#interference_test-expect">expect</a>)
 </pre>
@@ -330,7 +330,7 @@ passes when at least one pair overlaps, and fails when none does.
 ## pcb_fit_test
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "pcb_fit_test")
+load("@hdlf_rules_brep//brep:defs.bzl", "pcb_fit_test")
 
 pcb_fit_test(<a href="#pcb_fit_test-name">name</a>, <a href="#pcb_fit_test-board">board</a>, <a href="#pcb_fit_test-board_placement">board_placement</a>, <a href="#pcb_fit_test-enclosure">enclosure</a>, <a href="#pcb_fit_test-expect">expect</a>, <a href="#pcb_fit_test-hole_tolerance_mm">hole_tolerance_mm</a>, <a href="#pcb_fit_test-min_clearance_mm">min_clearance_mm</a>,
              <a href="#pcb_fit_test-overlap_epsilon_mm3">overlap_epsilon_mm3</a>)
@@ -394,7 +394,7 @@ The geometry runs on the CAD toolchain; the checks are Go.
 ## tool_toolchain
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "tool_toolchain")
+load("@hdlf_rules_brep//brep:defs.bzl", "tool_toolchain")
 
 tool_toolchain(<a href="#tool_toolchain-name">name</a>, <a href="#tool_toolchain-tools">tools</a>)
 </pre>
@@ -413,7 +413,7 @@ tool_toolchain(
 toolchain(
     name = "my_cad_runner",
     toolchain = ":my_cad_runner_impl",
-    toolchain_type = "@rules_brep//brep:toolchain_type",
+    toolchain_type = "@hdlf_rules_brep//brep:toolchain_type",
 )
 ```
 
@@ -431,7 +431,7 @@ toolchain(
 ## CadAssemblyInfo
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "CadAssemblyInfo")
+load("@hdlf_rules_brep//brep:defs.bzl", "CadAssemblyInfo")
 
 CadAssemblyInfo(<a href="#CadAssemblyInfo-step">step</a>, <a href="#CadAssemblyInfo-children">children</a>)
 </pre>
@@ -451,7 +451,7 @@ A built assembly.
 ## CadPartInfo
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "CadPartInfo")
+load("@hdlf_rules_brep//brep:defs.bzl", "CadPartInfo")
 
 CadPartInfo(<a href="#CadPartInfo-step">step</a>, <a href="#CadPartInfo-stl">stl</a>, <a href="#CadPartInfo-src">src</a>)
 </pre>
@@ -472,7 +472,7 @@ A built part.
 ## CadToolchainInfo
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "CadToolchainInfo")
+load("@hdlf_rules_brep//brep:defs.bzl", "CadToolchainInfo")
 
 CadToolchainInfo(<a href="#CadToolchainInfo-python_version">python_version</a>)
 </pre>
@@ -491,7 +491,7 @@ What the CAD toolchain offers beyond its `runner`, `renderer` and `measurer` too
 ## determinism_test
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "determinism_test")
+load("@hdlf_rules_brep//brep:defs.bzl", "determinism_test")
 
 determinism_test(<a href="#determinism_test-name">name</a>, <a href="#determinism_test-target">target</a>, <a href="#determinism_test-kwargs">**kwargs</a>)
 </pre>
@@ -533,14 +533,14 @@ determinism_test(
 ## swap_test
 
 <pre>
-load("@rules_brep//brep:defs.bzl", "swap_test")
+load("@hdlf_rules_brep//brep:defs.bzl", "swap_test")
 
 swap_test(<a href="#swap_test-name">name</a>, <a href="#swap_test-targets">targets</a>, <a href="#swap_test-kwargs">**kwargs</a>)
 </pre>
 
 Builds targets with every tool swapped for a stub, and checks them.
 
-The targets are built with `--@rules_brep//brep/toolchains:use_stub`,
+The targets are built with `--@hdlf_rules_brep//brep/toolchains:use_stub`,
 so each tool toolchain that honors the flag resolves to the stub tool.
 The stub writes a record into every output, files and directories
 alike. The test fails if any output file of the targets lacks the

@@ -1,33 +1,33 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# The example consumer. It uses only the public API of rules_brep, as a
+# The example consumer. It uses only the public API of hdlf_rules_brep, as a
 # user of the published module would. The e2e bracket and enclosure arrive
 # with the cad_part rule (milestone M4).
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("@rules_brep//brep:defs.bzl", "RULES_BREP_API_VERSION")
+load("@hdlf_rules_brep//brep:defs.bzl", "RULES_BREP_API_VERSION")
 
 # The public packages load and build: the rules, and the root package
-# with the --@rules_brep//:tools flag that every user's build reads.
+# with the --@hdlf_rules_brep//:tools flag that every user's build reads.
 build_test(
     name = "public_api_builds",
     size = "small",
     targets = [
-        "@rules_brep//:tools",
-        "@rules_brep//:tools_prebuilt",
-        "@rules_brep//:tools_source",
-        "@rules_brep//brep:defs",
+        "@hdlf_rules_brep//:tools",
+        "@hdlf_rules_brep//:tools_prebuilt",
+        "@hdlf_rules_brep//:tools_source",
+        "@hdlf_rules_brep//brep:defs",
     ],
 )
 
-# The CAD toolchain builds in a module that depends on rules_brep: the
-# hermetic Python, and build123d and OCP from rules_brep's locked wheels
+# The CAD toolchain builds in a module that depends on hdlf_rules_brep: the
+# hermetic Python, and build123d and OCP from hdlf_rules_brep's locked wheels
 # (issue #7).
 build_test(
     name = "cad_toolchain_builds",
     size = "small",
-    targets = ["@rules_brep//brep/toolchains:cad_impl"],
+    targets = ["@hdlf_rules_brep//brep/toolchains:cad_impl"],
 )
 
 # The module resolved here is the one this consumer was written for.

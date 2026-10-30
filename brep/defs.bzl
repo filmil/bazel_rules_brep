@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Public API of rules_brep.
+"""Public API of hdlf_rules_brep.
 
 Load every rule from this file:
 
 ```starlark
-load("@rules_brep//brep:defs.bzl", "determinism_test", "swap_test", "tool_toolchain")
+load("@hdlf_rules_brep//brep:defs.bzl", "determinism_test", "swap_test", "tool_toolchain")
 ```
 
 The rules arrive in milestone M4 (see the issues of

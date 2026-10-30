@@ -4,7 +4,7 @@
 [![Publish to my Bazel registry](https://github.com/filmil/bazel_rules_brep/actions/workflows/publish.yml/badge.svg)](https://github.com/filmil/bazel_rules_brep/actions/workflows/publish.yml)
 [![Publish on Bazel Central Registry](https://github.com/filmil/bazel_rules_brep/actions/workflows/publish-bcr.yml/badge.svg)](https://github.com/filmil/bazel_rules_brep/actions/workflows/publish-bcr.yml)
 
-# rules_brep
+# hdlf_rules_brep
 
 Hermetic Bazel rules for mechanical parts written as build123d scripts.
 The build turns each part script into STEP and STL files, combines parts
@@ -22,7 +22,7 @@ Only Linux x86_64 hosts are supported.
 ## Using it
 
 ```starlark
-bazel_dep(name = "rules_brep", version = "0.1.0")
+bazel_dep(name = "hdlf_rules_brep", version = "0.1.0")
 ```
 
 `.bazelrc`, while the module is only in the filmil registry:
@@ -35,7 +35,7 @@ common --registry=https://bcr.bazel.build
 The rules are documented in [docs/defs.md](docs/defs.md). A part:
 
 ```starlark
-load("@rules_brep//brep:defs.bzl", "cad_part", "cad_render", "geometry_equal_test")
+load("@hdlf_rules_brep//brep:defs.bzl", "cad_part", "cad_render", "geometry_equal_test")
 
 cad_part(
     name = "bracket",
@@ -82,7 +82,7 @@ a locked set of wheels of its own (`requirements_cadquery_lock.txt`):
 build that has a CadQuery part.
 
 The CAD runners are Python (build123d or CadQuery, and OCCT) on the
-hermetic interpreter of rules_python; rules_brep registers them. Add this to `.bazelrc`, or
+hermetic interpreter of rules_python; hdlf_rules_brep registers them. Add this to `.bazelrc`, or
 rules_python starts it through the host's `python3`:
 
 ```

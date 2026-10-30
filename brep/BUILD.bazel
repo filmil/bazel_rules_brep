@@ -3,7 +3,7 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@bazel_skylib//rules:common_settings.bzl", "int_flag")
 
 # The time every time stamp in an output becomes, in seconds since 1970
-# UTC (spec D2): --@rules_brep//brep:source_date_epoch=N. Default 0.
+# UTC (spec D2): --@hdlf_rules_brep//brep:source_date_epoch=N. Default 0.
 int_flag(
     name = "source_date_epoch",
     build_setting_default = 0,

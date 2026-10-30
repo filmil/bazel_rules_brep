@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # The Bazel Central Registry presubmit builds this module against the
-# published rules_brep archive. `.bcr/presubmit.yml` names it by the
+# published hdlf_rules_brep archive. `.bcr/presubmit.yml` names it by the
 # `module_path: "integration"` key.
 #
 # The version below and the override are both replaced by the registry
@@ -9,26 +9,26 @@
 # Locally the override makes the module resolve to the parent directory, so
 # `cd integration && bazel test //...` exercises the working tree.
 module(
-    name = "rules_brep_integration",
+    name = "hdlf_rules_brep_integration",
     version = "0.0.0",
 )
 
-bazel_dep(name = "rules_brep", version = "0.0.0")
+bazel_dep(name = "hdlf_rules_brep", version = "0.0.0")
 local_path_override(
-    module_name = "rules_brep",
+    module_name = "hdlf_rules_brep",
     path = "..",
 )
 
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
 
-# Only so that .bazelrc can name rules_python's bootstrap flag; rules_brep
+# Only so that .bazelrc can name rules_python's bootstrap flag; hdlf_rules_brep
 # brings rules_python itself.
 bazel_dep(name = "rules_python", version = "2.4.6")
 
-# Under Bazel 8, a py_binary of rules_python (rules_brep's CAD runner) asks
+# Under Bazel 8, a py_binary of rules_python (hdlf_rules_brep's CAD runner) asks
 # for a C++ toolchain, though it compiles nothing; Bazel 9 does not. A user
 # brings one: here the self-contained zig toolchain, as this module, like
-# rules_brep's own, finds none on the host (.bazelrc).
+# hdlf_rules_brep's own, finds none on the host (.bazelrc).
 bazel_dep(name = "hermetic_cc_toolchain", version = "4.3.0")
 
 zig_toolchains = use_extension("@hermetic_cc_toolchain//toolchain:ext.bzl", "toolchains")

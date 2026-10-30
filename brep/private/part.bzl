@@ -54,7 +54,7 @@ def _positive(ctx, attr, v):
 def _cad_part_impl(ctx):
     epoch = ctx.attr._epoch[BuildSettingInfo].value
     if epoch < 0:
-        fail("--@rules_brep//brep:source_date_epoch=%d: want 0 or more" % epoch)
+        fail("--@hdlf_rules_brep//brep:source_date_epoch=%d: want 0 or more" % epoch)
     _positive(ctx, "stl_tolerance", ctx.attr.stl_tolerance)
     _positive(ctx, "stl_angular_tolerance", ctx.attr.stl_angular_tolerance)
 
@@ -121,7 +121,7 @@ the CadQuery toolchain, with CadQuery 2.8 and its own OCCT. Its wheels (467
 MB, VTK among them) are fetched only for a build that has such a part.
 
 * `<name>.step` names the shape `<name>`, and its header time is
-  `--@rules_brep//brep:source_date_epoch` (default 1970-01-01).
+  `--@hdlf_rules_brep//brep:source_date_epoch` (default 1970-01-01).
 * `<name>.stl` is binary, meshed with parallel meshing off, so the same
   part gives the same bytes on the same platform. Across platforms the
   geometry may differ in the last digits; `geometry_equal_test` compares
