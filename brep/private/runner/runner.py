@@ -153,13 +153,21 @@ def assemble(spec):
     from build123d import Compound, Location, import_step
 
     children = []
+    loaded = {}
     for c in spec.get("children", []):
         try:
-            shape = import_step(c["step"])
-        except Exception as e:
-            raise PartError("child %s: reading %s failed: %s" % (c.get("name"), c.get("step"), e))
-        moved = shape.moved(Location(tuple(c["pos"]), tuple(c["rot"])))
-        moved.label = c["name"]
+            name, step, pos, rot = c["name"], c["step"], c["pos"], c["rot"]
+        except (KeyError, TypeError) as e:
+            raise PartError("a child lacks %s: %r" % (e, c))
+        if step not in loaded:
+            # Each part's file once, however often it is placed.
+            try:
+                loaded[step] = import_step(step)
+            except Exception as e:
+                raise PartError("child %s: reading %s failed: %s" % (name, step, e))
+        # moved() returns a new shape, placed in the part's own frame.
+        moved = loaded[step].moved(Location(tuple(pos), tuple(rot)))
+        moved.label = name
         children.append(moved)
     if not children:
         raise PartError("the assembly has no children")
@@ -181,6 +189,10 @@ def main(argv):
     a = p.parse_args(argv)
     if bool(a.part) == bool(a.assemble):
         p.error("give one of --part and --assemble")
+    if a.assemble:
+        extra = [f for f, v in [("--summary", a.summary), ("--stl", a.stl), ("--path", a.path)] if v]
+        if extra or a.name != "part":
+            p.error("--assemble takes only --step (the name is the spec's); got %s" % (extra + (["--name"] if a.name != "part" else [])))
     what = a.part or a.assemble
     try:
         if a.assemble:
@@ -196,8 +208,13 @@ def main(argv):
 
 def run_assembly(a):
     """Writes the assembly that the spec describes as STEP."""
-    with open(a.assemble, encoding="utf-8") as f:
-        spec = json.load(f)
+    try:
+        with open(a.assemble, encoding="utf-8") as f:
+            spec = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        raise PartError("reading the spec failed: %s" % e)
+    if not isinstance(spec, dict) or not isinstance(spec.get("name"), str):
+        raise PartError("the spec must be an object with a name")
     if not a.step:
         raise PartError("--assemble needs --step")
     write_step(assemble(spec), spec["name"], a.step, epoch_timestamp())

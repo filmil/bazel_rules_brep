@@ -28,7 +28,7 @@ def _placements(ctx, label, text):
     """The placements a part's value gives: one object, or a list of them."""
     where = "parts[%s]" % label
     value = json.decode(text, default = None)
-    if value == None:
+    if value == None and text.strip() != "null":
         fail("%s: %s = %r is not JSON" % (ctx.label, where, text))
     items = value if type(value) == "list" else [value]
     if not items:
@@ -78,7 +78,8 @@ def _cad_assembly_impl(ctx):
         _CAD,
         "runner",
         arguments = ["--assemble", spec.path, "--step", step.path],
-        inputs = [spec] + [c.part.step for c in children],
+        # A part placed twice is one input.
+        inputs = depset([spec] + [c.part.step for c in children]),
         outputs = [step],
         env = {"SOURCE_DATE_EPOCH": str(epoch)},
         mnemonic = "BrepAssembly",
@@ -104,9 +105,12 @@ cad_assembly(
 ```
 
 Each value places its part: a JSON object with `pos` (x, y, z in mm) and
-`rot` (degrees about X, then the new Y, then the new Z), both defaulting to
-zero, or a list of such objects to place the part more than once. A child
-is named after its part, with `_1`, `_2`, ... when placed more than once.
+`rot` (degrees: about X, then about the turned Y, then about the turned Z,
+that is intrinsic X-Y-Z Euler angles), both defaulting to zero, or a list
+of such objects to place the part more than once. Placements are in the
+part's own frame, as `cad_part` built it. A child is named after its part
+when placed once (also from a list of one), and `<part>_1`, `<part>_2`,
+... when placed more than once.
 
 The header is normalized as `cad_part`'s: the assembly's name, and the
 time `--@rules_brep//brep:source_date_epoch`.

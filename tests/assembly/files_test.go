@@ -35,8 +35,9 @@ func TestAssemblyStep(t *testing.T) {
 			t.Errorf("stand.step lacks %q", want)
 		}
 	}
-	if n := strings.Count(s, "MANIFOLD_SOLID_BREP"); n < 2 {
-		t.Errorf("%d solids; the plate and the post (placed twice) are in it", n)
+	// OCCT writes a solid per placement: the plate, and the post twice.
+	if n := strings.Count(s, "MANIFOLD_SOLID_BREP"); n != 3 {
+		t.Errorf("%d solids, want 3: the plate, and the post twice", n)
 	}
 	for _, bad := range []string{"bazel-out", "/sandbox/", "execroot"} {
 		if strings.Contains(s, bad) {

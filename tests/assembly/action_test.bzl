@@ -9,6 +9,7 @@ def _assembly_action_impl(ctx):
     info = analysistest.target_under_test(env)[CadAssemblyInfo]
     asserts.equals(env, ctx.attr.children, [c.name for c in info.children])
     asserts.equals(env, [[float(x) for x in v.split(",")] for v in ctx.attr.positions], [c.pos for c in info.children])
+    asserts.equals(env, [[float(x) for x in v.split(",")] for v in ctx.attr.rotations], [c.rot for c in info.children])
     actions = [a for a in analysistest.target_actions(env) if a.mnemonic == "BrepAssembly"]
     asserts.equals(env, 1, len(actions), "BrepAssembly actions")
     argv = actions[0].argv
@@ -23,6 +24,7 @@ def _assembly_action_impl(ctx):
     asserts.equals(env, 1, len(writes), "the spec is written")
     spec = json.decode(writes[0].content)
     asserts.equals(env, ctx.attr.children, [c["name"] for c in spec["children"]])
+    asserts.equals(env, [c.rot for c in info.children], [c["rot"] for c in spec["children"]])
     return analysistest.end(env)
 
 assembly_action_test = analysistest.make(
@@ -30,5 +32,6 @@ assembly_action_test = analysistest.make(
     attrs = {
         "children": attr.string_list(mandatory = True),
         "positions": attr.string_list(mandatory = True, doc = "Each child's pos as \"x,y,z\"."),
+        "rotations": attr.string_list(mandatory = True, doc = "Each child's rot as \"x,y,z\"."),
     },
 )

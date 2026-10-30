@@ -198,6 +198,23 @@ class AssemblyTest(unittest.TestCase):
                 outs.append(f.read())
         self.assertEqual(outs[0], outs[1])
 
+    def test_placement(self):
+        # good.py is a 1 x 2 x 3 box about the origin. rot is intrinsic X-Y-Z:
+        # [90, 90, 0] turns its X edge to world Y, Y to Z, and Z to X, so
+        # the bounding box is 3 x 1 x 2. Extrinsic X-Y-Z would give 2 x 3 x 1.
+        a = self.part_step("a")
+        asm = runner.assemble({"name": "s", "children": [
+            {"name": "still", "step": a, "pos": [0, 0, 0], "rot": [0, 0, 0]},
+            {"name": "turned", "step": a, "pos": [100, 0, 0], "rot": [90, 90, 0]},
+        ]})
+        sizes = {}
+        for child in asm.children:
+            bb = child.bounding_box()
+            sizes[child.label] = (bb.center(), [round(v, 6) for v in (bb.size.X, bb.size.Y, bb.size.Z)])
+        self.assertEqual([1, 2, 3], sizes["still"][1])
+        self.assertEqual([3, 1, 2], sizes["turned"][1])
+        self.assertAlmostEqual(100, sizes["turned"][0].X, places=6)
+
     def test_failures(self):
         with self.assertRaises(runner.PartError) as cm:
             self.assemble([])
@@ -205,6 +222,17 @@ class AssemblyTest(unittest.TestCase):
         with self.assertRaises(runner.PartError) as cm:
             self.assemble([{"name": "x", "step": "/nonexistent.step", "pos": [0, 0, 0], "rot": [0, 0, 0]}])
         self.assertIn("child x", str(cm.exception))
+        with self.assertRaises(runner.PartError) as cm:
+            self.assemble([{"name": "x", "pos": [0, 0, 0]}])
+        self.assertIn("a child lacks", str(cm.exception))
+        bad = os.path.join(self.tmp.name, "bad.json")
+        with open(bad, "w", encoding="utf-8") as f:
+            f.write("{nope")
+        with self.assertRaises(runner.PartError) as cm:
+            runner.main(["--assemble", bad, "--step", os.path.join(self.tmp.name, "o.step")])
+        self.assertIn("bad.json: reading the spec failed", str(cm.exception))
+        with self.assertRaises(SystemExit):
+            runner.main(["--assemble", bad, "--step", "o.step", "--stl", "o.stl"])
 
 
 if __name__ == "__main__":

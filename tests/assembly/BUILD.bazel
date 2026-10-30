@@ -22,7 +22,8 @@ cad_assembly(
     name = "stand",
     parts = {
         ":plate": "{}",
-        ":post": '[{"pos": [-20, 0, 2]}, {"pos": [20, 0, 2], "rot": [0, 0, 45]}]',
+        # The second post lies along Y: turned about X, so the turn shows.
+        ":post": '[{"pos": [-20, 0, 2]}, {"pos": [20, 0, 5], "rot": [90, 0, 0]}]',
     },
 )
 
@@ -37,7 +38,12 @@ assembly_action_test(
     positions = [
         "0,0,0",
         "-20,0,2",
-        "20,0,2",
+        "20,0,5",
+    ],
+    rotations = [
+        "0,0,0",
+        "0,0,0",
+        "90,0,0",
     ],
     target_under_test = ":stand",
 )
@@ -104,6 +110,16 @@ go_test(
             "nowhere",
             {":plate": "[]"},
             "places the part nowhere",
+        ),
+        (
+            "not_object",
+            {":plate": "[123]"},
+            "must be an object like",
+        ),
+        (
+            "null",
+            {":plate": "null"},
+            "must be an object like",
         ),
         (
             "same_name",
