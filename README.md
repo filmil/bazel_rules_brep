@@ -32,7 +32,19 @@ common --registry=https://raw.githubusercontent.com/filmil/bazel-registry/main
 common --registry=https://bcr.bazel.build
 ```
 
-The rules are documented in [docs/defs.md](docs/defs.md).
+The rules are documented in [docs/defs.md](docs/defs.md). A part:
+
+```starlark
+load("@rules_brep//brep:defs.bzl", "cad_part")
+
+cad_part(
+    name = "bracket",
+    src = "bracket.py",  # build(params) returns a solid, or a compound of solids
+    params = {"thickness": "3"},
+)
+```
+
+`bazel build :bracket` writes `bracket.step` and `bracket.stl`.
 
 The CAD runner is Python (build123d and OCCT) on the hermetic interpreter
 of rules_python; rules_brep registers it. Add this to `.bazelrc`, or

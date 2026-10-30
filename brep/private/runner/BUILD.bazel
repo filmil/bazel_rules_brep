@@ -27,7 +27,7 @@ py_test(
     name = "runner_test",
     size = "small",
     srcs = ["runner_test.py"],
-    data = glob(["testdata/*.py"]) + ["@brep_gl_libs//:libs"],
+    data = glob(["testdata/**/*.py"]) + ["@brep_gl_libs//:libs"],
     # The GL and X11 libraries OCP loads; the test loads them first.
     env = {"BREP_GL_LIBS": "$(rootpaths @brep_gl_libs//:libs)"},
     legacy_create_init = False,
