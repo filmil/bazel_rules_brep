@@ -36,7 +36,19 @@ pip.parse(
     python_version = "3.12",
     requirements_lock = "//:requirements_lock.txt",
 )
-use_repo(pip, "brep_pip")
+
+# CadQuery part scripts (issue #15) need cadquery-ocp below 8.0, which
+# build123d's lock cannot hold, so they have a hub of their own, locked in
+# requirements_cadquery_lock.txt (`bazel run
+# //tools:requirements_cadquery.update`). Its wheels (467 MB, VTK among
+# them) are fetched only when a cad_part sets library = "cadquery".
+pip.parse(
+    download_only = True,
+    hub_name = "brep_pip_cadquery",
+    python_version = "3.12",
+    requirements_lock = "//:requirements_cadquery_lock.txt",
+)
+use_repo(pip, "brep_pip", "brep_pip_cadquery")
 
 # The GL and X11 libraries OCP loads that its wheel leaves to the host,
 # from Debian 11 packages pinned by sha256 (brep/private/gl_libs.bzl).
@@ -46,6 +58,7 @@ use_repo(gl_libs, "brep_gl_libs")
 # The helpers toolchain, which every rule that runs a tool needs.
 register_toolchains(
     "//brep/toolchains:cad",
+    "//brep/toolchains:cad_cadquery",
     "//brep/toolchains:cad_stub",
     "//brep/toolchains:helpers",
     # Last, so they are picked only off Linux x86_64 (spec P1).

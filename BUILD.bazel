@@ -33,5 +33,7 @@ config_setting(
 # //tools:requirements.
 exports_files([
     "requirements.in",
+    "requirements_cadquery.in",
+    "requirements_cadquery_lock.txt",
     "requirements_lock.txt",
 ])

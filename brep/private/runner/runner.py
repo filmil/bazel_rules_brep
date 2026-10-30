@@ -35,57 +35,24 @@ Parts that only touch, at a face, an edge or a point, share none.
 Every failure exits with a message that names the part script (or the
 assembly); an error raised in the script also prints its traceback.
 
-This is the only Python in rules_brep: build123d and OCCT are Python
-libraries. Every checker is Go.
+Loading a part script, the epoch and the STL writer live in export.py,
+shared with the CadQuery runner (issue #15). Every checker is Go.
 """
 
 import argparse
-import datetime
-import importlib.util
 import io
 import json
 import math
 import os
 import sys
-import traceback
 
-
-class PartError(Exception):
-    """A part script that cannot be built; the message names it."""
-
-
-def load_part(path):
-    """Imports the part script at path as the module `part`.
-
-    The module is in sys.modules while it runs, as an imported module is,
-    so that dataclasses and pickling find it. The script's directory is on
-    sys.path, so it can import its neighbors.
-    """
-    spec = importlib.util.spec_from_file_location("part", path)
-    if spec is None or spec.loader is None:
-        raise PartError("%s: cannot load it as a Python file" % path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["part"] = module
-    sys.path.insert(0, os.path.dirname(os.path.abspath(path)))
-    try:
-        spec.loader.exec_module(module)
-    except Exception as e:
-        traceback.print_exc()
-        raise PartError("%s: importing it failed: %s: %s" % (path, type(e).__name__, e))
-    return module
+# Shared with the CadQuery runner (issue #15).
+from export import PartError, call_build, epoch_timestamp, load_part, write_stl  # noqa: F401
 
 
 def build(path, params):
     """Returns the shape that the part script at path builds."""
-    module = load_part(path)
-    fn = getattr(module, "build", None)
-    if not callable(fn):
-        raise PartError("%s defines no build(params) function" % path)
-    try:
-        shape = fn(params)
-    except Exception as e:
-        traceback.print_exc()
-        raise PartError("%s: build() failed: %s: %s" % (path, type(e).__name__, e))
+    shape = call_build(path, params)
     if shape is None or not hasattr(shape, "volume") or not hasattr(shape, "is_valid"):
         raise PartError("%s: build() returned %r, not a build123d shape" % (path, shape))
     # is_valid is a property of build123d shapes (BRepCheck_Analyzer).
@@ -100,18 +67,6 @@ def summary(shape):
     """The volume and the bounding box size, one per line."""
     size = shape.bounding_box().size
     return "volume %.3f\nsize %.3f %.3f %.3f\n" % (shape.volume, size.X, size.Y, size.Z)
-
-
-def epoch_timestamp():
-    """SOURCE_DATE_EPOCH as an ISO 8601 time in UTC, as STEP headers have it."""
-    raw = os.environ.get("SOURCE_DATE_EPOCH", "0")
-    try:
-        t = int(raw)
-    except ValueError:
-        raise PartError("SOURCE_DATE_EPOCH=%r is not a number of seconds" % raw)
-    if t < 0:
-        raise PartError("SOURCE_DATE_EPOCH=%d is before 1970" % t)
-    return datetime.datetime.fromtimestamp(t, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
 
 def write_step(shape, name, path, timestamp):
@@ -131,28 +86,6 @@ def write_step(shape, name, path, timestamp):
         shape.label = old
     with open(path, "wb") as f:
         f.write(buf.getvalue())
-
-
-def write_stl(shape, path, tolerance, angular_tolerance):
-    """Writes shape as binary STL, meshed with parallel meshing off.
-
-    build123d's export_stl meshes in parallel, which may order the
-    triangles differently from run to run.
-    """
-    from OCP.BRepMesh import BRepMesh_IncrementalMesh
-    from OCP.BRepTools import BRepTools
-    from OCP.StlAPI import StlAPI_Writer
-
-    # Drop any triangulation the part script made, maybe in parallel; the
-    # constructor meshes once, with parallel meshing off.
-    BRepTools.Clean_s(shape.wrapped)
-    mesh = BRepMesh_IncrementalMesh(shape.wrapped, tolerance, False, angular_tolerance, False)
-    if not mesh.IsDone():
-        raise PartError("meshing for STL failed")
-    writer = StlAPI_Writer()
-    writer.ASCIIMode = False
-    if not writer.Write(shape.wrapped, path):
-        raise PartError("writing the STL failed")
 
 
 def assemble(spec):
@@ -330,7 +263,7 @@ def run(a):
         for t in [a.stl_tolerance, a.stl_angular_tolerance]:
             if not math.isfinite(t) or t <= 0:
                 raise PartError("%s: the STL tolerances must be positive and finite" % a.part)
-        write_stl(shape, a.stl, a.stl_tolerance, a.stl_angular_tolerance)
+        write_stl(shape.wrapped, a.stl, a.stl_tolerance, a.stl_angular_tolerance)
 
 
 if __name__ == "__main__":

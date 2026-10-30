@@ -4,9 +4,9 @@
 # STL through the CAD toolchain; the files read back; the same bytes in two
 # configurations; and parameters that fail analysis.
 load("@rules_go//go:def.bzl", "go_test")
-load("//brep:defs.bzl", "cad_part", "determinism_test", "swap_test")
+load("//brep:defs.bzl", "cad_part", "determinism_test", "geometry_equal_test", "swap_test")
 load("//tests:fails_test.bzl", "fails_test")
-load(":action_test.bzl", "part_action_test")
+load(":action_test.bzl", "cq_runner_test", "part_action_test")
 
 cad_part(
     name = "bracket",
@@ -118,4 +118,56 @@ fails_test(
     size = "small",
     message = "stl_tolerance = \"1.2.3\" is not a number",
     target_under_test = ":dotted_tolerance",
+)
+
+# A CadQuery part (issue #15): built by the CadQuery toolchain's runner,
+# the same bytes in two configurations, its files read back, and the same
+# geometry as its build123d twin.
+cad_part(
+    name = "cq_block",
+    src = "cq_block.py",
+    library = "cadquery",
+    params = {"height": "6"},
+)
+
+cq_runner_test(
+    name = "cq_block_runner_test",
+    size = "small",
+    target_under_test = ":cq_block",
+)
+
+swap_test(
+    name = "cq_block_swap_test",
+    size = "small",
+    targets = [":cq_block"],
+)
+
+determinism_test(
+    name = "cq_block_determinism_test",
+    size = "small",
+    target = ":cq_block",
+)
+
+go_test(
+    name = "cq_block_files_test",
+    size = "small",
+    srcs = ["cq_files_test.go"],
+    args = ["--files=$(rlocationpaths :cq_block)"],
+    data = [":cq_block"],
+    pure = "on",
+    deps = ["@rules_go//go/runfiles"],
+)
+
+cad_part(
+    name = "block",
+    src = "block.py",
+    params = {"height": "6"},
+)
+
+geometry_equal_test(
+    name = "cq_block_geometry_test",
+    size = "small",
+    a = ":block",
+    abs_tolerance = "0.001",
+    b = ":cq_block",
 )

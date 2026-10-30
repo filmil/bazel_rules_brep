@@ -7,6 +7,21 @@ load(":run_tool.bzl", "RUN_TOOL_TOOLCHAINS", "run_tool")
 
 _CAD = Label("//brep:toolchain_type")
 
+# The CAD library a part is built with (issue #15): the CAD toolchain of
+# that library is the one toolchain resolution picks for the part.
+_LIBRARY = str(Label("//brep/toolchains:cad_library"))
+
+CAD_LIBRARIES = ["build123d", "cadquery"]
+
+def _library_impl(_settings, attr):
+    return {_LIBRARY: attr.library}
+
+_library_transition = transition(
+    implementation = _library_impl,
+    inputs = [],
+    outputs = [_LIBRARY],
+)
+
 CadPartInfo = provider(
     doc = "A built part.",
     fields = {
@@ -100,6 +115,11 @@ The script defines `build(params: dict)`, which returns a build123d solid
 (or a compound of solids).
 It runs with build123d and OCCT on the CAD toolchain.
 
+With `library = "cadquery"`, the script is a CadQuery script instead: its
+`build(params)` returns a CadQuery `Workplane` or `Shape`, and it runs on
+the CadQuery toolchain, with CadQuery 2.8 and its own OCCT. Its wheels (467
+MB, VTK among them) are fetched only for a build that has such a part.
+
 * `<name>.step` names the shape `<name>`, and its header time is
   `--@rules_brep//brep:source_date_epoch` (default 1970-01-01).
 * `<name>.stl` is binary, meshed with parallel meshing off, so the same
@@ -107,7 +127,13 @@ It runs with build123d and OCCT on the CAD toolchain.
   geometry may differ in the last digits; `geometry_equal_test` compares
   by tolerance (spec D3).
 """,
+    cfg = _library_transition,
     attrs = {
+        "library": attr.string(
+            doc = "The CAD library of the script: `\"build123d\"` or `\"cadquery\"`.",
+            default = "build123d",
+            values = CAD_LIBRARIES,
+        ),
         "src": attr.label(
             doc = "The part script.",
             mandatory = True,

@@ -38,3 +38,17 @@ compile_pip_requirements(
     # run with //...; the lock is checked by the fetch's hashes instead.
     tags = ["manual"],
 )
+
+# bazel run //tools:requirements_cadquery.update: the lock of the CadQuery
+# hub (issue #15), as above.
+compile_pip_requirements(
+    name = "requirements_cadquery",
+    src = "//:requirements_cadquery.in",
+    extra_args = [
+        "--allow-unsafe",
+        "--pip-args=--only-binary=:all:",
+    ],
+    python_version = "3.12",
+    requirements_txt = "//:requirements_cadquery_lock.txt",
+    tags = ["manual"],
+)

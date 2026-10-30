@@ -17,3 +17,13 @@ geometry_equal_test(
     a = "//parts:bracket",
     b = ":bracket_files",
 )
+
+# The bracket in build123d and in CadQuery: two libraries, two OCCT builds,
+# one shape (issue #15).
+geometry_equal_test(
+    name = "bracket_libraries_test",
+    size = "small",
+    a = "//parts:bracket",
+    abs_tolerance = "0.001",
+    b = "//parts:cq_bracket",
+)
