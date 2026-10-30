@@ -60,3 +60,34 @@ fails_test(
     message = "epsilon_mm3 = \"small\": want a number, 0 or more",
     target_under_test = ":bad_epsilon",
 )
+
+# The overlap is exactly half a cube, 500 mm^3: at an epsilon of 500 the
+# pair passes (a volume at the epsilon does), at 499.9 it overlaps.
+interference_test(
+    name = "overlapping_at_500_test",
+    size = "small",
+    assembly = ":overlapping",
+    epsilon_mm3 = "500",
+)
+
+interference_test(
+    name = "overlapping_above_499_9_test",
+    size = "small",
+    assembly = ":overlapping",
+    epsilon_mm3 = "499.9",
+    expect = "overlap",
+)
+
+interference_test(
+    name = "dotted_epsilon",
+    assembly = ":apart",
+    epsilon_mm3 = "1.2.3",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "dotted_epsilon_test",
+    size = "small",
+    message = "epsilon_mm3 = \"1.2.3\": want a number, 0 or more",
+    target_under_test = ":dotted_epsilon",
+)

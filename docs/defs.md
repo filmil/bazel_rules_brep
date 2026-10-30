@@ -241,14 +241,15 @@ interference_test(
 )
 ```
 
-Every pair of the assembly's children is intersected; a pair that shares
-more than `epsilon_mm3` of volume fails the test, and the message names
-each such pair and the volume. Parts that only touch, along a face or an
-edge, share none. The intersection runs on the CAD toolchain as a build
-action; the check is Go.
+Every pair of the assembly's children is intersected, solid by solid; a
+pair that shares more than `epsilon_mm3` of volume fails the test, and the
+message names each such pair and the volume. A volume exactly at
+`epsilon_mm3` passes. Parts that only touch, at a face, an edge or a
+point, share none. The intersection runs on the CAD toolchain as a build
+action, skipping solids whose bounding boxes do not meet; the check is Go.
 
 `expect = "overlap"` is for a known-bad assembly (spec T3): the test then
-fails when no pair overlaps.
+passes when at least one pair overlaps, and fails when none does.
 
 **ATTRIBUTES**
 

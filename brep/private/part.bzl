@@ -2,6 +2,7 @@
 """cad_part: a part script built into STEP and STL (issue #8)."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+load(":numbers.bzl", "parse_number")
 load(":run_tool.bzl", "RUN_TOOL_TOOLCHAINS", "run_tool")
 
 _CAD = Label("//brep:toolchain_type")
@@ -26,13 +27,11 @@ def _params_json(ctx):
         parts.append("%s: %s" % (json.encode(k), json.encode(decoded)))
     return "{" + ", ".join(parts) + "}"
 
-_NUMBER_CHARS = "0123456789.eE+-"
-
 def _positive(ctx, attr, v):
     """v as a positive, finite number, or a failure that names attr."""
-    if not v or [c for c in v.elems() if c not in _NUMBER_CHARS]:
+    x = parse_number(v)
+    if x == None:
         fail("%s: %s = %r is not a number" % (ctx.label, attr, v))
-    x = float(v)
     if not (x > 0) or x == float("inf"):
         fail("%s: %s = %r: STL tolerances must be positive and finite" % (ctx.label, attr, v))
     return x

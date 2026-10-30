@@ -3,8 +3,9 @@
 // Command overlapcheck is interference_test's checker (issue #13).
 //
 // It reads the runner's interference report, one line per pair of
-// children: "pair A B VOLUME", the volume in mm^3 that A and B share. A
-// pair shares volume when VOLUME is above OVERLAP_EPSILON.
+// children, fields separated by tabs: "pair", A, B, VOLUME, the volume in
+// mm^3 that A and B share. A pair shares volume when VOLUME is above
+// OVERLAP_EPSILON; one exactly at it does not.
 //
 // OVERLAP_EXPECT is "none" (the default): the test fails, naming each pair
 // that shares volume. It is "overlap" for a known-bad assembly: the test
@@ -18,6 +19,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -36,16 +38,19 @@ func Parse(r io.Reader) ([]Pair, error) {
 	var out []Pair
 	s := bufio.NewScanner(r)
 	for n := 1; s.Scan(); n++ {
-		f := strings.Fields(s.Text())
-		if len(f) == 0 {
+		if strings.TrimSpace(s.Text()) == "" {
 			continue
 		}
+		f := strings.Split(s.Text(), "\t")
 		if len(f) != 4 || f[0] != "pair" {
-			return nil, fmt.Errorf("line %d: want \"pair A B VOLUME\", got %q", n, s.Text())
+			return nil, fmt.Errorf("line %d: want pair, A, B and VOLUME separated by tabs, got %q", n, s.Text())
 		}
 		v, err := strconv.ParseFloat(f[3], 64)
 		if err != nil {
 			return nil, fmt.Errorf("line %d: %v", n, err)
+		}
+		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 {
+			return nil, fmt.Errorf("line %d: volume %v is not a finite number, 0 or more", n, v)
 		}
 		out = append(out, Pair{f[1], f[2], v})
 	}
@@ -96,7 +101,7 @@ func run() error {
 		return err
 	}
 	eps, err := strconv.ParseFloat(os.Getenv("OVERLAP_EPSILON"), 64)
-	if err != nil || eps < 0 {
+	if err != nil || eps < 0 || math.IsNaN(eps) || math.IsInf(eps, 0) {
 		return fmt.Errorf("OVERLAP_EPSILON=%q: want a number, 0 or more", os.Getenv("OVERLAP_EPSILON"))
 	}
 	expect := os.Getenv("OVERLAP_EXPECT")

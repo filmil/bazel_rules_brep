@@ -27,8 +27,10 @@ names it, and writes one STEP of all of them, named NAME, the same way as
 --step.
 
 --interference reads the same spec, places the children, and writes one
-line per pair of them, in the order of the spec: "pair A B VOLUME", the
-volume (mm^3, six decimals) that A and B share. Touching faces share none.
+line per pair of them, in the order of the spec, fields separated by tabs:
+"pair", A, B, and the volume (mm^3, full precision) that A and B share:
+the solids of their common part, summed over every pair of their solids.
+Parts that only touch, at a face, an edge or a point, share none.
 
 Every failure exits with a message that names the part script (or the
 assembly); an error raised in the script also prints its traceback.
@@ -179,17 +181,63 @@ def assemble(spec):
     return Compound(children=children)
 
 
+def _solids(shape):
+    """The OCCT solids in shape, each with its bounding box."""
+    from OCP.Bnd import Bnd_Box
+    from OCP.BRepBndLib import BRepBndLib
+    from OCP.TopAbs import TopAbs_SOLID
+    from OCP.TopExp import TopExp_Explorer
+
+    out = []
+    exp = TopExp_Explorer(shape.wrapped, TopAbs_SOLID)
+    while exp.More():
+        box = Bnd_Box()
+        BRepBndLib.Add_s(exp.Current(), box)
+        out.append((exp.Current(), box))
+        exp.Next()
+    return out
+
+
+def _common_volume(a, b):
+    """The volume of the solids that OCCT's boolean common of a and b gives.
+
+    Only solids count: where a and b touch at a face, an edge or a point,
+    the common part has no solid, and so no volume.
+    """
+    from OCP.BRepAlgoAPI import BRepAlgoAPI_Common
+    from OCP.BRepGProp import BRepGProp
+    from OCP.GProp import GProp_GProps
+    from OCP.TopAbs import TopAbs_SOLID
+    from OCP.TopExp import TopExp_Explorer
+
+    op = BRepAlgoAPI_Common(a, b)
+    if not op.IsDone():
+        raise PartError("OCCT could not intersect two solids")
+    total = 0.0
+    exp = TopExp_Explorer(op.Shape(), TopAbs_SOLID)
+    while exp.More():
+        props = GProp_GProps()
+        BRepGProp.VolumeProperties_s(exp.Current(), props)
+        total += abs(props.Mass())
+        exp.Next()
+    return total
+
+
 def interference(compound):
     """One line per pair of children: the volume the two share."""
     kids = list(compound.children)
+    solids = [_solids(k) for k in kids]
     lines = []
     for i in range(len(kids)):
         for j in range(i + 1, len(kids)):
-            # intersect() gives the shapes the two share, or None; faces
-            # and edges, where they only touch, have no volume.
-            common = kids[i].intersect(kids[j]) or []
-            vol = sum(max(getattr(c, "volume", 0.0), 0.0) for c in common)
-            lines.append("pair %s %s %.6f\n" % (kids[i].label, kids[j].label, vol))
+            vol = 0.0
+            for sa, ba in solids[i]:
+                for sb, bb in solids[j]:
+                    # Solids whose boxes do not meet share nothing; skip the
+                    # boolean.
+                    if not ba.IsOut(bb):
+                        vol += _common_volume(sa, sb)
+            lines.append("pair\t%s\t%s\t%r\n" % (kids[i].label, kids[j].label, vol))
     return "".join(lines)
 
 
@@ -210,8 +258,16 @@ def main(argv):
     a = p.parse_args(argv)
     if sum(bool(x) for x in [a.part, a.assemble, a.interference]) != 1:
         p.error("give one of --part, --assemble and --interference")
-    if a.interference and (a.step or a.stl or a.summary or not a.report):
-        p.error("--interference takes only --report")
+    if a.interference:
+        extra = [f for f, v in [("--step", a.step), ("--stl", a.stl), ("--summary", a.summary), ("--path", a.path)] if v]
+        if a.name != "part":
+            extra.append("--name")
+        if a.params != "{}":
+            extra.append("--params")
+        if extra or not a.report:
+            p.error("--interference takes only --report; got %s" % (extra or "no --report"))
+    if a.report and not a.interference:
+        p.error("--report goes with --interference")
     if a.assemble:
         extra = [f for f, v in [("--summary", a.summary), ("--stl", a.stl), ("--path", a.path)] if v]
         if extra or a.name != "part":

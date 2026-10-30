@@ -215,22 +215,76 @@ class AssemblyTest(unittest.TestCase):
         self.assertEqual([3, 1, 2], sizes["turned"][1])
         self.assertAlmostEqual(100, sizes["turned"][0].X, places=6)
 
+    def pairs(self, kids):
+        report = runner.interference(runner.assemble({"name": "s", "children": kids}))
+        out = {}
+        for line in report.splitlines():
+            f = line.split("\t")
+            self.assertEqual("pair", f[0])
+            out[(f[1], f[2])] = float(f[3])
+        return out
+
     def test_interference(self):
         # good.py is a 1 x 2 x 3 box about the origin (volume 6).
         a = self.part_step("a")
-        kids = [
+        got = self.pairs([
             {"name": "base", "step": a, "pos": [0, 0, 0], "rot": [0, 0, 0]},
-            {"name": "half_in", "step": a, "pos": [0.5, 0, 0], "rot": [0, 0, 0]},
+            {"name": "half in", "step": a, "pos": [0.5, 0, 0], "rot": [0, 0, 0]},
             {"name": "touching", "step": a, "pos": [-1, 0, 0], "rot": [0, 0, 0]},
             {"name": "far", "step": a, "pos": [50, 0, 0], "rot": [0, 0, 0]},
-        ]
-        report = runner.interference(runner.assemble({"name": "s", "children": kids}))
-        got = {tuple(l.split()[1:3]): float(l.split()[3]) for l in report.splitlines()}
+        ])
         self.assertEqual(6, len(got))
-        self.assertAlmostEqual(3.0, got[("base", "half_in")], places=6)  # half of 6
-        self.assertAlmostEqual(0.0, got[("base", "touching")], places=6)  # a shared face
-        self.assertAlmostEqual(0.0, got[("base", "far")], places=6)
-        self.assertAlmostEqual(0.0, got[("half_in", "far")], places=6)
+        self.assertAlmostEqual(3.0, got[("base", "half in")], places=6)  # half of 6
+        self.assertEqual(0.0, got[("base", "touching")])  # a shared face
+        self.assertEqual(0.0, got[("base", "far")])
+
+    def test_contact_and_rotation(self):
+        # Unit cubes: touching along an edge and at a corner share nothing;
+        # one turned 45 degrees about Z, centered on another, shares the
+        # octagon prism they have in common, 2 * (sqrt(2) - 1) = 0.828...
+        out = os.path.join(self.tmp.name, "u.step")
+        runner.main(["--part", part("unit_cube.py"), "--name", "u", "--step", out])
+        got = self.pairs([
+            {"name": "c", "step": out, "pos": [0, 0, 0], "rot": [0, 0, 0]},
+            {"name": "edge", "step": out, "pos": [1, 1, 0], "rot": [0, 0, 0]},
+            {"name": "corner", "step": out, "pos": [1, 1, 1], "rot": [0, 0, 0]},
+            {"name": "turned", "step": out, "pos": [0, 0, 0], "rot": [0, 0, 45]},
+        ])
+        self.assertEqual(0.0, got[("c", "edge")])
+        self.assertEqual(0.0, got[("c", "corner")])
+        self.assertAlmostEqual(2 * (2 ** 0.5 - 1), got[("c", "turned")], places=6)
+
+    def test_part_of_two_solids(self):
+        # A part of two cubes 3 mm apart; a unit cube placed on the second
+        # overlaps it alone, by half.
+        two = os.path.join(self.tmp.name, "two.step")
+        runner.main(["--part", part("two_cubes.py"), "--name", "two", "--step", two])
+        one = os.path.join(self.tmp.name, "one.step")
+        runner.main(["--part", part("unit_cube.py"), "--name", "one", "--step", one])
+        got = self.pairs([
+            {"name": "two", "step": two, "pos": [0, 0, 0], "rot": [0, 0, 0]},
+            {"name": "one", "step": one, "pos": [3.5, 0, 0], "rot": [0, 0, 0]},
+        ])
+        self.assertAlmostEqual(0.5, got[("two", "one")], places=6)
+
+    def test_interference_cli(self):
+        a = self.part_step("a")
+        spec = os.path.join(self.tmp.name, "spec.json")
+        with open(spec, "w", encoding="utf-8") as f:
+            json.dump({"name": "s", "children": [
+                {"name": "x", "step": a, "pos": [0, 0, 0], "rot": [0, 0, 0]},
+                {"name": "y", "step": a, "pos": [0.5, 0, 0], "rot": [0, 0, 0]}]}, f)
+        out = os.path.join(self.tmp.name, "r.txt")
+        runner.main(["--interference", spec, "--report", out])
+        with open(out, encoding="utf-8") as f:
+            line = f.read()
+        self.assertTrue(line.startswith("pair\tx\ty\t3.0"), line)
+        for extra in (["--step", "o"], ["--name", "n"], ["--params", "{}x"], []):
+            argv = ["--interference", spec] + (["--report", out] if extra else []) + extra
+            with self.assertRaises(SystemExit):
+                runner.main(argv)
+        with self.assertRaises(SystemExit):
+            runner.main(["--assemble", spec, "--step", "o", "--report", out])
 
     def test_failures(self):
         with self.assertRaises(runner.PartError) as cm:
