@@ -56,6 +56,7 @@ helpers_toolchain(
     geqcheck = "//brep/private/geqcheck",
     launcher = "//brep/private/launcher",
     overlapcheck = "//brep/private/overlapcheck",
+    partcheck = "//brep/private/partcheck",
     swapcheck = "//brep/private/swapcheck",
 )
 

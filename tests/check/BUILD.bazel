@@ -1,0 +1,198 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# cad_check_test (issue #12): a ribbed plate within every limit; the same
+# plate as a STEP file; known-bad parts (spec T3) whose wall, size or
+# volume is out of bounds; and limits that fail analysis.
+load("//brep:defs.bzl", "cad_check_test", "cad_part")
+load("//tests:fails_test.bzl", "fails_test")
+
+cad_part(
+    name = "plate",
+    src = "ribbed_plate.py",
+)
+
+# Volume 40*30*3 + 40*1.6*8 = 4112 mm^3; size 40 x 30 x 11; thinnest wall
+# the 1.6 mm rib.
+cad_check_test(
+    name = "plate_check_test",
+    size = "small",
+    max_size = [
+        "40",
+        "30",
+        "11",
+    ],
+    max_volume = "4112",
+    min_volume = "4100",
+    min_wall = "1.5",
+    part = ":plate",
+)
+
+# The same part as a target that names its STEP file (and its STL).
+filegroup(
+    name = "plate_files",
+    srcs = [":plate"],
+)
+
+cad_check_test(
+    name = "plate_files_check_test",
+    size = "small",
+    max_volume = "4200",
+    part = ":plate_files",
+)
+
+# Known bad: a 0.8 mm rib under a 1.5 mm minimum wall.
+cad_part(
+    name = "thin_rib",
+    src = "ribbed_plate.py",
+    params = {"rib": "0.8"},
+)
+
+cad_check_test(
+    name = "thin_rib_check_test",
+    size = "small",
+    expect = "fail",
+    expect_failing = ["min_wall"],
+    min_wall = "1.5",
+    part = ":thin_rib",
+)
+
+# Known bad: 40 mm long where 35 mm is allowed, and too heavy.
+cad_check_test(
+    name = "too_long_check_test",
+    size = "small",
+    expect = "fail",
+    expect_failing = ["max_size"],
+    max_size = [
+        "35",
+        "30",
+        "11",
+    ],
+    part = ":plate",
+)
+
+cad_check_test(
+    name = "too_heavy_check_test",
+    size = "small",
+    expect = "fail",
+    expect_failing = ["max_volume"],
+    max_volume = "4000",
+    part = ":plate",
+)
+
+# Known bad: lighter than 4200 mm^3.
+cad_check_test(
+    name = "too_light_check_test",
+    size = "small",
+    expect = "fail",
+    expect_failing = ["min_volume"],
+    max_volume = "5000",
+    min_volume = "4200",
+    part = ":plate",
+)
+
+# Limits that fail analysis, each with its message.
+
+cad_check_test(
+    name = "no_limit",
+    part = ":plate",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "no_limit_test",
+    size = "small",
+    message = "no limit given",
+    target_under_test = ":no_limit",
+)
+
+cad_check_test(
+    name = "bad_number",
+    max_volume = "1.2.3",
+    part = ":plate",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "bad_number_test",
+    size = "small",
+    message = "max_volume = \"1.2.3\": want a number, 0 or more",
+    target_under_test = ":bad_number",
+)
+
+cad_check_test(
+    name = "two_sizes",
+    max_size = [
+        "1",
+        "2",
+    ],
+    part = ":plate",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "two_sizes_test",
+    size = "small",
+    message = "max_size must be 3 numbers",
+    target_under_test = ":two_sizes",
+)
+
+cad_check_test(
+    name = "volumes_crossed",
+    max_volume = "10",
+    min_volume = "20",
+    part = ":plate",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "volumes_crossed_test",
+    size = "small",
+    message = "min_volume 20 is above max_volume 10",
+    target_under_test = ":volumes_crossed",
+)
+
+cad_check_test(
+    name = "grid_zero",
+    min_wall = "1",
+    part = ":plate",
+    tags = ["manual"],
+    wall_grid = 0,
+)
+
+fails_test(
+    name = "grid_zero_test",
+    size = "small",
+    message = "wall_grid = 0: want 1 to 100",
+    target_under_test = ":grid_zero",
+)
+
+cad_check_test(
+    name = "unknown_failing",
+    expect = "fail",
+    expect_failing = ["weight"],
+    max_volume = "1",
+    part = ":plate",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "unknown_failing_test",
+    size = "small",
+    message = "expect_failing has \"weight\"",
+    target_under_test = ":unknown_failing",
+)
+
+cad_check_test(
+    name = "failing_without_fail",
+    expect_failing = ["max_volume"],
+    max_volume = "1",
+    part = ":plate",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "failing_without_fail_test",
+    size = "small",
+    message = "expect_failing goes with expect = \"fail\"",
+    target_under_test = ":failing_without_fail",
+)

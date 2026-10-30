@@ -54,6 +54,63 @@ time `--@rules_brep//brep:source_date_epoch`.
 | <a id="cad_assembly-parts"></a>parts |  The parts (`cad_part` targets), each mapped to its placement(s) as JSON.   | <a href="https://bazel.build/rules/lib/core/dict">Dictionary: Label -> String</a> | required |  |
 
 
+<a id="cad_check_test"></a>
+
+## cad_check_test
+
+<pre>
+load("@rules_brep//brep:defs.bzl", "cad_check_test")
+
+cad_check_test(<a href="#cad_check_test-name">name</a>, <a href="#cad_check_test-expect">expect</a>, <a href="#cad_check_test-expect_failing">expect_failing</a>, <a href="#cad_check_test-max_size">max_size</a>, <a href="#cad_check_test-max_volume">max_volume</a>, <a href="#cad_check_test-min_volume">min_volume</a>, <a href="#cad_check_test-min_wall">min_wall</a>, <a href="#cad_check_test-part">part</a>,
+               <a href="#cad_check_test-wall_grid">wall_grid</a>)
+</pre>
+
+Checks a part against limits: volume, size, thinnest wall.
+
+```starlark
+cad_check_test(
+    name = "bracket_check_test",
+    part = ":bracket",
+    max_size = ["40", "30", "35"],
+    max_volume = "5000",
+    min_wall = "1.5",
+)
+```
+
+The part is measured with OCP on the CAD toolchain (the measurer of
+`geometry_equal_test`), and the limits are checked in Go. Each limit is
+checked only when set; the test fails listing every limit that does not
+hold, with the value found. A value at a limit holds.
+
+* `min_volume`, `max_volume`: mm^3.
+* `max_size`: the largest bounding box, `[X, Y, Z]` in mm.
+* `min_wall`: the thinnest wall, in mm. It is sampled: from a
+  `wall_grid` x `wall_grid` grid of points on each face, a ray goes
+  inward, and the shortest way through the solid counts. A wall thinner
+  than the grid's spacing in a small spot can be missed; raise
+  `wall_grid` to look closer. Measured only when `min_wall` is set.
+
+Raising a limit so that a part passes needs a person (AGENTS.md rule 7).
+`expect = "fail"` is for a known-bad part (spec T3): the test then passes
+when a limit does not hold; `expect_failing` names which, so the part
+fails for the reason it was made for.
+
+**ATTRIBUTES**
+
+
+| Name  | Description | Type | Mandatory | Default |
+| :------------- | :------------- | :------------- | :------------- | :------------- |
+| <a id="cad_check_test-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
+| <a id="cad_check_test-expect"></a>expect |  "pass", or "fail" for a known-bad part.   | String | optional |  `"pass"`  |
+| <a id="cad_check_test-expect_failing"></a>expect_failing |  With expect = "fail": the limits that must fail, and only they (min_volume, max_volume, max_size, min_wall).   | List of strings | optional |  `[]`  |
+| <a id="cad_check_test-max_size"></a>max_size |  The largest bounding box: X, Y, Z in mm.   | List of strings | optional |  `[]`  |
+| <a id="cad_check_test-max_volume"></a>max_volume |  The most volume, mm^3.   | String | optional |  `""`  |
+| <a id="cad_check_test-min_volume"></a>min_volume |  The least volume, mm^3.   | String | optional |  `""`  |
+| <a id="cad_check_test-min_wall"></a>min_wall |  The thinnest wall allowed, mm.   | String | optional |  `""`  |
+| <a id="cad_check_test-part"></a>part |  The part: a `cad_part`, or a target that names one STEP file.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+| <a id="cad_check_test-wall_grid"></a>wall_grid |  Points per side of the grid on each face for min_wall.   | Integer | optional |  `8`  |
+
+
 <a id="cad_part"></a>
 
 ## cad_part

@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# cad_check_test from a module that depends on rules_brep (issue #12): the
+# measurer with its min-wall measure and the Go checker, across the module
+# boundary.
+load("@rules_brep//brep:defs.bzl", "cad_check_test", "cad_part")
+
+cad_part(
+    name = "plate",
+    src = "plate.py",
+)
+
+# 30 x 20 x 4 mm, 2400 mm^3, and 4 mm is its thinnest wall.
+cad_check_test(
+    name = "plate_check_test",
+    size = "small",
+    max_size = [
+        "30",
+        "20",
+        "4",
+    ],
+    max_volume = "2400",
+    min_volume = "2400",
+    min_wall = "4",
+    part = ":plate",
+)
