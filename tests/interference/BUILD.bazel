@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# interference_test (issue #13) on three assemblies of a 10 mm cube: apart
+# and touching (clean), and overlapping by half (known bad, spec T3).
+load("//brep:defs.bzl", "cad_assembly", "cad_part", "interference_test")
+load("//tests:fails_test.bzl", "fails_test")
+
+cad_part(
+    name = "block",
+    src = "block.py",
+)
+
+# Two cubes 5 mm apart.
+cad_assembly(
+    name = "apart",
+    parts = {":block": '[{"pos": [0, 0, 0]}, {"pos": [15, 0, 0]}]'},
+)
+
+interference_test(
+    name = "apart_test",
+    size = "small",
+    assembly = ":apart",
+)
+
+# Two cubes sharing a face: touching is not overlapping.
+cad_assembly(
+    name = "touching",
+    parts = {":block": '[{"pos": [0, 0, 0]}, {"pos": [10, 0, 0]}]'},
+)
+
+interference_test(
+    name = "touching_test",
+    size = "small",
+    assembly = ":touching",
+)
+
+# Known bad: the second cube overlaps the first by half (500 mm^3).
+cad_assembly(
+    name = "overlapping",
+    parts = {":block": '[{"pos": [0, 0, 0]}, {"pos": [5, 0, 0]}]'},
+)
+
+interference_test(
+    name = "overlapping_test",
+    size = "small",
+    assembly = ":overlapping",
+    expect = "overlap",
+)
+
+interference_test(
+    name = "bad_epsilon",
+    assembly = ":apart",
+    epsilon_mm3 = "small",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "bad_epsilon_test",
+    size = "small",
+    message = "epsilon_mm3 = \"small\": want a number, 0 or more",
+    target_under_test = ":bad_epsilon",
+)
+
+# The overlap is exactly half a cube, 500 mm^3: at an epsilon of 500 the
+# pair passes (a volume at the epsilon does), at 499.9 it overlaps.
+interference_test(
+    name = "overlapping_at_500_test",
+    size = "small",
+    assembly = ":overlapping",
+    epsilon_mm3 = "500",
+)
+
+interference_test(
+    name = "overlapping_above_499_9_test",
+    size = "small",
+    assembly = ":overlapping",
+    epsilon_mm3 = "499.9",
+    expect = "overlap",
+)
+
+interference_test(
+    name = "dotted_epsilon",
+    assembly = ":apart",
+    epsilon_mm3 = "1.2.3",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "dotted_epsilon_test",
+    size = "small",
+    message = "epsilon_mm3 = \"1.2.3\": want a number, 0 or more",
+    target_under_test = ":dotted_epsilon",
+)

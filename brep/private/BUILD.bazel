@@ -10,6 +10,8 @@ bzl_library(
         "determinism.bzl",
         "geometry_equal.bzl",
         "gl_libs.bzl",
+        "interference.bzl",
+        "numbers.bzl",
         "part.bzl",
         "render.bzl",
         "run_tool.bzl",

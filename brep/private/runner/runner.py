@@ -7,6 +7,7 @@ Usage:
            [--name NAME] [--step OUT.step] [--stl OUT.stl]
            [--stl-tolerance MM] [--stl-angular-tolerance RAD] [--path DIR]...
     runner --assemble SPEC.json --step OUT.step
+    runner --interference SPEC.json --report OUT.txt
 
 PART.py defines `build(params: dict)`, which returns a build123d shape.
 The runner imports it, calls it with the parameters, and checks that the
@@ -24,6 +25,12 @@ bytes repeat. Neither file holds a path of the build.
 child's STEP, moves it (millimeters; degrees, intrinsic X then Y then Z),
 names it, and writes one STEP of all of them, named NAME, the same way as
 --step.
+
+--interference reads the same spec, places the children, and writes one
+line per pair of them, in the order of the spec, fields separated by tabs:
+"pair", A, B, and the volume (mm^3, full precision) that A and B share:
+the solids of their common part, summed over every pair of their solids.
+Parts that only touch, at a face, an edge or a point, share none.
 
 Every failure exits with a message that names the part script (or the
 assembly); an error raised in the script also prints its traceback.
@@ -174,10 +181,72 @@ def assemble(spec):
     return Compound(children=children)
 
 
+def _solids(shape):
+    """The OCCT solids in shape, each with its bounding box."""
+    from OCP.Bnd import Bnd_Box
+    from OCP.BRepBndLib import BRepBndLib
+    from OCP.TopAbs import TopAbs_SOLID
+    from OCP.TopExp import TopExp_Explorer
+
+    out = []
+    exp = TopExp_Explorer(shape.wrapped, TopAbs_SOLID)
+    while exp.More():
+        box = Bnd_Box()
+        BRepBndLib.Add_s(exp.Current(), box)
+        out.append((exp.Current(), box))
+        exp.Next()
+    return out
+
+
+def _common_volume(a, b):
+    """The volume of the solids that OCCT's boolean common of a and b gives.
+
+    Only solids count: where a and b touch at a face, an edge or a point,
+    the common part has no solid, and so no volume.
+    """
+    from OCP.BRepAlgoAPI import BRepAlgoAPI_Common
+    from OCP.BRepGProp import BRepGProp
+    from OCP.GProp import GProp_GProps
+    from OCP.TopAbs import TopAbs_SOLID
+    from OCP.TopExp import TopExp_Explorer
+
+    op = BRepAlgoAPI_Common(a, b)
+    if not op.IsDone():
+        raise PartError("OCCT could not intersect two solids")
+    total = 0.0
+    exp = TopExp_Explorer(op.Shape(), TopAbs_SOLID)
+    while exp.More():
+        props = GProp_GProps()
+        BRepGProp.VolumeProperties_s(exp.Current(), props)
+        total += abs(props.Mass())
+        exp.Next()
+    return total
+
+
+def interference(compound):
+    """One line per pair of children: the volume the two share."""
+    kids = list(compound.children)
+    solids = [_solids(k) for k in kids]
+    lines = []
+    for i in range(len(kids)):
+        for j in range(i + 1, len(kids)):
+            vol = 0.0
+            for sa, ba in solids[i]:
+                for sb, bb in solids[j]:
+                    # Solids whose boxes do not meet share nothing; skip the
+                    # boolean.
+                    if not ba.IsOut(bb):
+                        vol += _common_volume(sa, sb)
+            lines.append("pair\t%s\t%s\t%r\n" % (kids[i].label, kids[j].label, vol))
+    return "".join(lines)
+
+
 def main(argv):
     p = argparse.ArgumentParser(prog="runner")
     p.add_argument("--part", help="the part script")
     p.add_argument("--assemble", help="an assembly spec (JSON), instead of --part")
+    p.add_argument("--interference", help="an assembly spec (JSON): report the volume each pair shares")
+    p.add_argument("--report", help="where --interference writes its report")
     p.add_argument("--params", default="{}", help="the parameters, as a JSON object")
     p.add_argument("--summary", help="write the volume and size here")
     p.add_argument("--name", default="part", help="the shape's name in the STEP file")
@@ -187,15 +256,30 @@ def main(argv):
     p.add_argument("--stl-angular-tolerance", type=float, default=0.1, help="the STL mesh's angular deflection, radians")
     p.add_argument("--path", action="append", default=[], help="a directory to import the part's dependencies from")
     a = p.parse_args(argv)
-    if bool(a.part) == bool(a.assemble):
-        p.error("give one of --part and --assemble")
+    if sum(bool(x) for x in [a.part, a.assemble, a.interference]) != 1:
+        p.error("give one of --part, --assemble and --interference")
+    if a.interference:
+        extra = [f for f, v in [("--step", a.step), ("--stl", a.stl), ("--summary", a.summary), ("--path", a.path)] if v]
+        if a.name != "part":
+            extra.append("--name")
+        if a.params != "{}":
+            extra.append("--params")
+        if extra or not a.report:
+            p.error("--interference takes only --report; got %s" % (extra or "no --report"))
+    if a.report and not a.interference:
+        p.error("--report goes with --interference")
     if a.assemble:
         extra = [f for f, v in [("--summary", a.summary), ("--stl", a.stl), ("--path", a.path)] if v]
         if extra or a.name != "part":
             p.error("--assemble takes only --step (the name is the spec's); got %s" % (extra + (["--name"] if a.name != "part" else [])))
-    what = a.part or a.assemble
+    what = a.part or a.assemble or a.interference
     try:
-        if a.assemble:
+        if a.interference:
+            spec = read_spec(a.interference)
+            report = interference(assemble(spec))
+            with open(a.report, "w", encoding="utf-8") as f:
+                f.write(report)
+        elif a.assemble:
             run_assembly(a)
         else:
             run(a)
@@ -206,15 +290,21 @@ def main(argv):
         raise PartError("%s: %s" % (what, e)) from None
 
 
-def run_assembly(a):
-    """Writes the assembly that the spec describes as STEP."""
+def read_spec(path):
+    """The assembly spec at path."""
     try:
-        with open(a.assemble, encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             spec = json.load(f)
     except (OSError, json.JSONDecodeError) as e:
         raise PartError("reading the spec failed: %s" % e)
     if not isinstance(spec, dict) or not isinstance(spec.get("name"), str):
         raise PartError("the spec must be an object with a name")
+    return spec
+
+
+def run_assembly(a):
+    """Writes the assembly that the spec describes as STEP."""
+    spec = read_spec(a.assemble)
     if not a.step:
         raise PartError("--assemble needs --step")
     write_step(assemble(spec), spec["name"], a.step, epoch_timestamp())

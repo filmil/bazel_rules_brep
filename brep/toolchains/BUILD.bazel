@@ -30,6 +30,7 @@ helpers_toolchain(
     compare = "//brep/private/detcompare",
     geqcheck = "//brep/private/geqcheck",
     launcher = "//brep/private/launcher",
+    overlapcheck = "//brep/private/overlapcheck",
     swapcheck = "//brep/private/swapcheck",
 )
 

@@ -104,3 +104,18 @@ fails_test(
     message = "is not a number",
     target_under_test = ":text_tolerance",
 )
+
+cad_part(
+    name = "dotted_tolerance",
+    src = "bracket.py",
+    stl_tolerance = "1.2.3",
+    tags = ["manual"],
+    deps = ["dims.py"],
+)
+
+fails_test(
+    name = "dotted_tolerance_test",
+    size = "small",
+    message = "stl_tolerance = \"1.2.3\" is not a number",
+    target_under_test = ":dotted_tolerance",
+)
