@@ -115,5 +115,56 @@ class MeasurerTest(unittest.TestCase):
         self.assertIn("cannot read it as STEP", str(cm.exception))
 
 
+class MinWallTest(unittest.TestCase):
+    def wall(self, shape, grid="5"):
+        out = os.path.join(tempfile.mkdtemp(), "m.txt")
+        measurer.main(["--step", step_of(shape), "--out", out, "--min-wall", grid])
+        with open(out, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+        self.assertTrue(lines[-1].startswith("min_wall "), lines[-1])
+        self.assertEqual("vertices", lines[-2].split()[0])  # the agreed order, then min_wall
+        return float(lines[-1].split()[1])
+
+    def test_solid_box(self):
+        from build123d import Box
+
+        self.assertAlmostEqual(10, self.wall(Box(10, 20, 30)), places=6)
+
+    def test_plate(self):
+        from build123d import Box
+
+        self.assertAlmostEqual(2, self.wall(Box(40, 30, 2)), places=6)
+
+    def test_hollow_box(self):
+        # A 20 mm cube with a 18 mm cube taken out of it: 1 mm walls.
+        from build123d import Box
+
+        self.assertAlmostEqual(1, self.wall(Box(20, 20, 20) - Box(18, 18, 18)), places=6)
+
+    def test_thin_rib(self):
+        # A 5 mm thick base with a 0.8 mm rib on top: the rib is thinnest.
+        from build123d import Box, Pos
+
+        shape = Box(30, 30, 5) + Pos(0, 0, 7.5) * Box(30, 0.8, 10)
+        self.assertAlmostEqual(0.8, self.wall(shape), places=6)
+
+    def test_cylinder_wall(self):
+        # A tube, outer radius 5, inner 4: a 1 mm wall around the curve.
+        from build123d import Cylinder
+
+        self.assertAlmostEqual(1, self.wall(Cylinder(5, 20) - Cylinder(4, 20)), places=3)
+
+    def test_same_twice_and_off_by_default(self):
+        from build123d import Box
+
+        s = Box(4, 5, 6)
+        self.assertEqual(self.wall(s), self.wall(s))
+        self.assertNotIn("min_wall", run(step_of(s)))  # only with --min-wall
+
+    def test_bad_grid(self):
+        with self.assertRaises(SystemExit):
+            measurer.main(["--step", "x", "--out", "y", "--min-wall", "-1"])
+
+
 if __name__ == "__main__":
     unittest.main()
