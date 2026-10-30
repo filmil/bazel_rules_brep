@@ -1,0 +1,114 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# pcb_fit_test (issue #14): a test board in a tray with bosses. It fits;
+# known bad (spec T3): a moved mounting hole (the M4 exit), too little
+# clearance, and the board sunk into its bosses; and settings that fail
+# analysis.
+load("//brep:defs.bzl", "cad_part", "pcb_fit_test")
+load("//tests:fails_test.bzl", "fails_test")
+
+cad_part(
+    name = "board",
+    src = "board.py",
+)
+
+cad_part(
+    name = "tray",
+    src = "tray.py",
+)
+
+# The board rests on the bosses (top at z = 4), 5 mm from each wall.
+pcb_fit_test(
+    name = "board_fit_test",
+    size = "small",
+    board = ":board",
+    board_placement = '{"pos": [0, 0, 4]}',
+    enclosure = ":tray",
+    min_clearance_mm = "5",
+)
+
+# Known bad, the M4 exit: one mounting hole moved 0.3 mm.
+cad_part(
+    name = "board_moved_hole",
+    src = "board.py",
+    params = {"shift": "0.3"},
+)
+
+pcb_fit_test(
+    name = "moved_hole_fit_test",
+    size = "small",
+    board = ":board_moved_hole",
+    board_placement = '{"pos": [0, 0, 4]}',
+    enclosure = ":tray",
+    expect = "fail",
+    min_clearance_mm = "1",
+)
+
+# Known bad: 6 mm of clearance asked, 5 there.
+pcb_fit_test(
+    name = "tight_fit_test",
+    size = "small",
+    board = ":board",
+    board_placement = '{"pos": [0, 0, 4]}',
+    enclosure = ":tray",
+    expect = "fail",
+    min_clearance_mm = "6",
+)
+
+# Known bad: the board sunk 0.5 mm into its bosses.
+pcb_fit_test(
+    name = "sunk_fit_test",
+    size = "small",
+    board = ":board",
+    board_placement = '{"pos": [0, 0, 3.5]}',
+    enclosure = ":tray",
+    expect = "fail",
+    min_clearance_mm = "1",
+)
+
+pcb_fit_test(
+    name = "bad_clearance",
+    board = ":board",
+    enclosure = ":tray",
+    min_clearance_mm = "1.2.3",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "bad_clearance_test",
+    size = "small",
+    message = "min_clearance_mm = \"1.2.3\": want a number, 0 or more",
+    target_under_test = ":bad_clearance",
+)
+
+pcb_fit_test(
+    name = "bad_placement",
+    board = ":board",
+    board_placement = "[0, 0, 4]",
+    enclosure = ":tray",
+    min_clearance_mm = "1",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "bad_placement_test",
+    size = "small",
+    message = "want a JSON object like",
+    target_under_test = ":bad_placement",
+)
+
+pcb_fit_test(
+    name = "tilted",
+    board = ":board",
+    board_placement = '{"rot": [90, 0, 0]}',
+    enclosure = ":tray",
+    min_clearance_mm = "1",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "tilted_test",
+    size = "small",
+    message = "the board must lie flat",
+    target_under_test = ":tilted",
+)

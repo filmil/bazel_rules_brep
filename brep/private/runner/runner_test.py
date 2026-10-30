@@ -286,6 +286,109 @@ class AssemblyTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             runner.main(["--assemble", spec, "--step", "o", "--report", out])
 
+    def step(self, script, params):
+        out = os.path.join(self.tmp.name, "%s-%d.step" % (script, abs(hash(json.dumps(params, sort_keys=True)))))
+        runner.main(["--part", part(script), "--params", json.dumps(params), "--name", "x", "--step", out])
+        return out
+
+    def fit(self, board=None, tray=None, z=4.0, rot=(0, 0, 0), cli=False):
+        spec = {"board": self.step("board.py", board or {}), "enclosure": self.step("tray.py", tray or {}), "pos": [0, 0, z], "rot": list(rot)}
+        if cli:
+            path = os.path.join(self.tmp.name, "fit.json")
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(spec, f)
+            out = os.path.join(self.tmp.name, "fit.txt")
+            runner.main(["--fit", path, "--report", out])
+            with open(out, encoding="utf-8") as f:
+                report = f.read()
+        else:
+            report = runner.fit(spec)
+        got = {"hole": [], "mount": []}
+        for line in report.splitlines():
+            f = line.split("\t")
+            if f[0] == "hole":
+                got["hole"].append(tuple(round(float(v), 6) for v in f[1:]))
+            elif f[0] == "mount":
+                got["mount"].append(tuple(round(float(v), 6) for v in f[1:4]) + (f[4],))
+            else:
+                got[f[0]] = float(f[1])
+        got["hole"].sort()
+        got["mount"].sort()
+        return got
+
+    HOLES = [(-20, -10, 1.6), (-20, 10, 1.6), (20, -10, 1.6), (20, 10, 1.6)]
+
+    def test_fit(self):
+        got = self.fit(cli=True)
+        self.assertEqual(0.0, got["overlap"])  # it rests on the bosses
+        self.assertAlmostEqual(5.0, got["clearance"], places=6)  # 5 mm to each wall
+        self.assertEqual(self.HOLES, got["hole"])
+        # Each boss: its hole for the screw, and its outside (too wide to count).
+        for x, y, _ in self.HOLES:
+            self.assertIn((x, y, 1.25, "hole"), got["mount"])
+            self.assertIn((x, y, 2.5, "hole"), got["mount"])
+        self.assertEqual(8, len(got["mount"]))
+
+    def test_turned_half_way(self):
+        got = self.fit(rot=(0, 0, 180))
+        self.assertEqual(0.0, got["overlap"])
+        self.assertAlmostEqual(5.0, got["clearance"], places=6)
+        self.assertEqual(self.HOLES, got["hole"])
+
+    def test_moved_hole(self):
+        got = self.fit(board={"shift": 1})
+        self.assertIn((-19, -10, 1.6), got["hole"])
+        self.assertNotIn((-19, -10), {m[:2] for m in got["mount"]})
+
+    def test_board_in_the_floor(self):
+        got = self.fit(z=-0.5)  # sunk 0.5 mm into the floor and the bosses
+        self.assertGreater(got["overlap"], 0.0)
+
+    def test_notch_is_no_hole(self):
+        # A half-round notch in the edge is part of the outline, not a hole:
+        # it comes 2 mm closer to the wall.
+        got = self.fit(board={"notch": True})
+        self.assertEqual(self.HOLES, got["hole"])
+        self.assertAlmostEqual(5.0, got["clearance"], places=6)
+
+    def test_parts_on_the_board(self):
+        # A board with parts, as a kicad_step: the holes and the outline come
+        # from the board alone, and the tall can, 10 mm up, does not pull the
+        # walls into the clearance.
+        got = self.fit(board={"parts": True})
+        self.assertEqual(0.0, got["overlap"])
+        self.assertAlmostEqual(5.0, got["clearance"], places=6)
+        self.assertEqual(self.HOLES, got["hole"])
+
+    def test_pins(self):
+        # Pins up through the holes are mounts, not walls: the clearance is
+        # still to the walls. The solid bosses under them are supports.
+        got = self.fit(tray={"pins": True})
+        self.assertEqual(0.0, got["overlap"])
+        self.assertAlmostEqual(5.0, got["clearance"], places=6)
+        self.assertEqual(sorted((x, y, 1.5, "pin") for x, y, _ in self.HOLES), got["mount"])
+
+    def test_no_walls(self):
+        got = self.fit(tray={"floor": True})
+        self.assertEqual(float("inf"), got["clearance"])
+        self.assertEqual(8, len(got["mount"]))
+
+    def test_far_mounts(self):
+        # Lifted 1 mm off the bosses, the board has no mounts.
+        got = self.fit(z=5.0)
+        self.assertEqual([], got["mount"])
+
+    def test_bad_spec(self):
+        for spec, msg in [
+            ([], "must be a JSON object"),
+            ({"enclosure": "e", "pos": [0, 0, 0], "rot": [0, 0, 0]}, "board must be a file name"),
+            ({"board": "b", "enclosure": "e", "pos": [0, 0], "rot": [0, 0, 0]}, "pos must be 3 numbers"),
+            ({"board": "b", "enclosure": "e", "pos": [0, 0, 0], "rot": [0, "x", 0]}, "rot must be 3 numbers"),
+        ]:
+            with self.assertRaises(runner.PartError) as cm:
+                runner.fit(spec)
+            self.assertIn(msg, str(cm.exception))
+
     def test_failures(self):
         with self.assertRaises(runner.PartError) as cm:
             self.assemble([])

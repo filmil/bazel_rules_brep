@@ -19,6 +19,7 @@ load("//brep/private:determinism.bzl", _determinism_test = "determinism_test")
 load("//brep/private:geometry_equal.bzl", _geometry_equal_test = "geometry_equal_test")
 load("//brep/private:interference.bzl", _interference_test = "interference_test")
 load("//brep/private:part.bzl", _CadPartInfo = "CadPartInfo", _cad_part = "cad_part")
+load("//brep/private:pcb_fit.bzl", _pcb_fit_test = "pcb_fit_test")
 load("//brep/private:render.bzl", _cad_render = "cad_render")
 load("//brep/private:swap_test.bzl", _swap_test = "swap_test")
 load("//brep/private:toolchains.bzl", _tool_toolchain = "tool_toolchain")
@@ -34,6 +35,7 @@ cad_toolchain = _cad_toolchain
 determinism_test = _determinism_test
 geometry_equal_test = _geometry_equal_test
 interference_test = _interference_test
+pcb_fit_test = _pcb_fit_test
 swap_test = _swap_test
 tool_toolchain = _tool_toolchain
 

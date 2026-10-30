@@ -16,6 +16,7 @@ HelpersInfo = provider(
         "swapcheck": "DefaultInfo of the swap test's checker (a target binary).",
         "compare": "DefaultInfo of determinism_test's comparer (a target binary).",
         "geqcheck": "DefaultInfo of geometry_equal_test's checker (a target binary).",
+        "fitcheck": "DefaultInfo of pcb_fit_test's checker (a target binary).",
         "overlapcheck": "DefaultInfo of interference_test's checker (a target binary).",
         "partcheck": "DefaultInfo of cad_check_test's checker (a target binary).",
     },
@@ -27,6 +28,7 @@ def _helpers_toolchain_impl(ctx):
         swapcheck = ctx.attr.swapcheck[DefaultInfo],
         compare = ctx.attr.compare[DefaultInfo],
         geqcheck = ctx.attr.geqcheck[DefaultInfo],
+        fitcheck = ctx.attr.fitcheck[DefaultInfo],
         overlapcheck = ctx.attr.overlapcheck[DefaultInfo],
         partcheck = ctx.attr.partcheck[DefaultInfo],
     ))]
@@ -40,6 +42,7 @@ helpers_toolchain = rule(
         "swapcheck": attr.label(mandatory = True, executable = True, cfg = "target"),
         "compare": attr.label(mandatory = True, executable = True, cfg = "target"),
         "geqcheck": attr.label(mandatory = True, executable = True, cfg = "target"),
+        "fitcheck": attr.label(mandatory = True, executable = True, cfg = "target"),
         "overlapcheck": attr.label(mandatory = True, executable = True, cfg = "target"),
         "partcheck": attr.label(mandatory = True, executable = True, cfg = "target"),
     },

@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# pcb_fit_test from a module that depends on rules_brep (issue #14): a
+# board in its tray. The board stands in for a kicad_step of rules_kicad,
+# which this module does not depend on.
+load("@rules_brep//brep:defs.bzl", "cad_part", "pcb_fit_test")
+
+cad_part(
+    name = "board",
+    src = "board.py",
+)
+
+cad_part(
+    name = "tray",
+    src = "tray.py",
+)
+
+pcb_fit_test(
+    name = "board_fit_test",
+    size = "small",
+    board = ":board",
+    board_placement = '{"pos": [0, 0, 4]}',
+    enclosure = ":tray",
+    min_clearance_mm = "4",
+)
