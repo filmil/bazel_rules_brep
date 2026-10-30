@@ -131,3 +131,17 @@ go_test(
         ),
     ]
 ]
+
+# No parts at all.
+cad_assembly(
+    name = "empty",
+    parts = {},
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "empty_test",
+    size = "small",
+    message = "parts is empty",
+    target_under_test = ":empty",
+)
