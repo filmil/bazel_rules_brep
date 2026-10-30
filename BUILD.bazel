@@ -28,3 +28,10 @@ config_setting(
     flag_values = {":tools": "source"},
     visibility = ["//visibility:public"],
 )
+
+# The CAD runner's Python packages and their lock (issue #7); see
+# //tools:requirements.
+exports_files([
+    "requirements.in",
+    "requirements_lock.txt",
+])

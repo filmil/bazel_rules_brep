@@ -1,0 +1,5 @@
+# The CAD runner's Python packages (issue #7). build123d brings OCP (OCCT's
+# Python binding, as cadquery-ocp-novtk wheels). Lock with
+# `bazel run //tools:requirements.update`; it writes requirements_lock.txt
+# with every wheel's hash.
+build123d==0.13.0

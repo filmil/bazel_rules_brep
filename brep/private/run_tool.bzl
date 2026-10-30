@@ -31,6 +31,9 @@ def run_tool(
     and each variable named in `home_env`, at a fresh directory inside the
     action, so the tool reads and writes no host configuration (spec H3).
 
+    A toolchain can add fixed environment values through an optional `env`
+    field of its `ToolchainInfo`; values the rule passes win over them.
+
     Args:
       ctx: the rule context. The rule's `toolchains` must include
         `toolchain_type` and `RUN_TOOL_TOOLCHAINS`.
@@ -58,8 +61,10 @@ def run_tool(
     pre = ctx.actions.args()
     for name in home_env:
         pre.add("--home-env", name)
-    for k in sorted(env.keys()):
-        pre.add("--env", "%s=%s" % (k, env[k]))
+    all_env = dict(getattr(info, "env", None) or {})
+    all_env.update(env)
+    for k in sorted(all_env.keys()):
+        pre.add("--env", "%s=%s" % (k, all_env[k]))
     for out in outputs:
         # The path, so a directory output (a tree artifact) is one value.
         pre.add("--output", out.path)

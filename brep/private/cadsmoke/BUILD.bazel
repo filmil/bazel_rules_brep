@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# The CAD toolchain's smoke test (issue #7), beside the private run_tool
+# it needs: a cube part builds with build123d and OCCT
+# in CI's container, which has no CAD packages, and through the stub in the
+# swap test.
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("//brep:defs.bzl", "determinism_test", "swap_test")
+load(":summary.bzl", "part_summary")
+
+part_summary(
+    name = "cube",
+    part = "cube.py",
+)
+
+diff_test(
+    name = "cube_test",
+    size = "small",
+    file1 = ":cube",
+    file2 = "expected_cube.txt",
+)
+
+# Parameters reach build().
+part_summary(
+    name = "cube20",
+    params = {"size": "20"},
+    part = "cube.py",
+)
+
+diff_test(
+    name = "cube20_test",
+    size = "small",
+    file1 = ":cube20",
+    file2 = "expected_cube20.txt",
+)
+
+swap_test(
+    name = "cube_swap_test",
+    size = "small",
+    targets = [":cube"],
+)
+
+determinism_test(
+    name = "cube_determinism_test",
+    size = "small",
+    target = ":cube",
+)

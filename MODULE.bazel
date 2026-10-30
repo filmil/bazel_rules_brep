@@ -14,8 +14,34 @@ bazel_dep(name = "platforms", version = "1.1.0")
 # its own Go SDK.
 bazel_dep(name = "rules_go", version = "0.64.2")
 
+# The CAD runner (issue #7) is Python, because build123d and OCCT are: the
+# hermetic interpreter of rules_python, and wheels locked with their hashes
+# in requirements_lock.txt (`bazel run //tools:requirements.update` writes
+# it from requirements.in). pip.parse takes binary wheels only, so a missing
+# wheel fails the fetch instead of compiling on the host.
+bazel_dep(name = "rules_python", version = "2.4.6")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    # A dependency's tag here would not count; rules_brep's own interpreter
+    # is set where it is used, by python_version on pip.parse.
+    is_default = False,
+    python_version = "3.12",
+)
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    download_only = True,
+    hub_name = "brep_pip",
+    python_version = "3.12",
+    requirements_lock = "//:requirements_lock.txt",
+)
+use_repo(pip, "brep_pip")
+
 # The helpers toolchain, which every rule that runs a tool needs.
 register_toolchains(
+    "//brep/toolchains:cad",
+    "//brep/toolchains:cad_stub",
     "//brep/toolchains:helpers",
     # Last, so it is picked only off Linux x86_64 (spec P1).
     "//brep/toolchains:unsupported",

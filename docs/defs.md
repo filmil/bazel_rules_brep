@@ -12,6 +12,33 @@ The rules arrive in milestone M4 (see the issues of
 https://github.com/filmil/bazel_rules_brep). This file is the only public
 entry point; everything under `//brep/private` may change without notice.
 
+<a id="cad_toolchain"></a>
+
+## cad_toolchain
+
+<pre>
+load("@rules_brep//brep:defs.bzl", "cad_toolchain")
+
+cad_toolchain(<a href="#cad_toolchain-name">name</a>, <a href="#cad_toolchain-python_version">python_version</a>, <a href="#cad_toolchain-runner">runner</a>)
+</pre>
+
+The CAD toolchain, for `@rules_brep//brep:toolchain_type`.
+
+Its tool, `runner --part PART.py [--params JSON] [--summary OUT]`, imports
+a part script, calls its `build(params)` function, and checks that the
+result is a valid build123d shape. rules_brep registers one on the
+hermetic Python of rules_python, with build123d and OCP locked by hash.
+
+**ATTRIBUTES**
+
+
+| Name  | Description | Type | Mandatory | Default |
+| :------------- | :------------- | :------------- | :------------- | :------------- |
+| <a id="cad_toolchain-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
+| <a id="cad_toolchain-python_version"></a>python_version |  The runner's Python version.   | String | required |  |
+| <a id="cad_toolchain-runner"></a>runner |  The CAD runner.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+
+
 <a id="tool_toolchain"></a>
 
 ## tool_toolchain
@@ -47,6 +74,25 @@ toolchain(
 | :------------- | :------------- | :------------- | :------------- | :------------- |
 | <a id="tool_toolchain-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
 | <a id="tool_toolchain-tools"></a>tools |  Executable targets, each mapped to the name rules use for it.   | <a href="https://bazel.build/rules/lib/core/dict">Dictionary: Label -> String</a> | required |  |
+
+
+<a id="CadToolchainInfo"></a>
+
+## CadToolchainInfo
+
+<pre>
+load("@rules_brep//brep:defs.bzl", "CadToolchainInfo")
+
+CadToolchainInfo(<a href="#CadToolchainInfo-python_version">python_version</a>)
+</pre>
+
+What the CAD toolchain offers beyond its `runner` tool.
+
+**FIELDS**
+
+| Name  | Description |
+| :------------- | :------------- |
+| <a id="CadToolchainInfo-python_version"></a>python_version |  string: the runner's Python version, such as "3.12".    |
 
 
 <a id="determinism_test"></a>

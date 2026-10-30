@@ -2,6 +2,7 @@
 # Development tools. They use the module's dev dependencies, so they live
 # apart from the packages a user of the module loads.
 load("@buildifier_prebuilt//:rules.bzl", "buildifier")
+load("@rules_python//python:pip.bzl", "compile_pip_requirements")
 
 # bazel run //tools:buildifier
 buildifier(
@@ -19,4 +20,21 @@ buildifier(
     exclude_patterns = ["./tools/lint/testdata/*"],
     lint_mode = "warn",
     mode = "check",
+)
+
+# bazel run //tools:requirements.update: writes requirements_lock.txt from
+# requirements.in, with every wheel's hash, wheels only. It reaches the
+# network, as a fetch does; no build action does.
+compile_pip_requirements(
+    name = "requirements",
+    src = "//:requirements.in",
+    extra_args = [
+        "--allow-unsafe",
+        "--pip-args=--only-binary=:all:",
+    ],
+    python_version = "3.12",
+    requirements_txt = "//:requirements_lock.txt",
+    # Its test (that the lock is current) fetches from PyPI, so it does not
+    # run with //...; the lock is checked by the fetch's hashes instead.
+    tags = ["manual"],
 )

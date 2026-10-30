@@ -34,6 +34,12 @@ common --registry=https://bcr.bazel.build
 
 The rules are documented in [docs/defs.md](docs/defs.md).
 
+The CAD runner is Python (build123d and OCCT) on the hermetic interpreter
+of rules_python; rules_brep registers it. Under Bazel 8, rules_python asks
+for a C++ toolchain even though nothing is compiled, so a build that finds
+none on the host needs one, such as hermetic_cc_toolchain (see
+`integration/MODULE.bazel`). Bazel 9 does not ask.
+
 ## Building
 
 ```sh
@@ -67,3 +73,9 @@ See the overall description at the [project page][pp].
 This repository is under the Apache License 2.0 (`LICENSE`).
 Prebuilt tools and libraries that the build downloads are listed here, with
 their versions, sources and licenses, as they are added.
+
+* Python 3.12, the hermetic interpreter of rules_python
+  (python-build-standalone): PSF License.
+* build123d 0.13.0 (Apache 2.0) and OCP, OCCT's Python binding, as
+  cadquery-ocp-novtk 8.0.1.1.0 wheels (LGPL 2.1 with the OCCT exception),
+  with their dependencies, pinned by hash in `requirements_lock.txt`.
