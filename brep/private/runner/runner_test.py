@@ -1,12 +1,30 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests of the CAD runner's checks and messages."""
 
+import ctypes
 import os
 import sys
 import tempfile
 import unittest
 
 import runner
+
+
+def preload_gl_libs():
+    """Loads the GL and X11 libraries OCP needs, dependencies first.
+
+    The runner gets them through LD_LIBRARY_PATH (the CAD toolchain); a test
+    cannot set that for itself, as the loader reads it at start. A library
+    already loaded under its soname satisfies OCP's link to it.
+    """
+    order = ["libmd.so.0", "libbsd.so.0", "libXau.so.6", "libXdmcp.so.6", "libxcb.so.1",
+             "libX11.so.6", "libGLdispatch.so.0", "libGLX.so.0", "libGL.so.1"]
+    paths = {os.path.basename(p): p for p in os.environ["BREP_GL_LIBS"].split()}
+    for name in order:
+        ctypes.CDLL(os.path.abspath(paths[name]), mode=ctypes.RTLD_GLOBAL)
+
+
+preload_gl_libs()
 
 D = os.path.join(os.path.dirname(os.path.abspath(__file__)), "testdata")
 

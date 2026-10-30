@@ -38,6 +38,11 @@ pip.parse(
 )
 use_repo(pip, "brep_pip")
 
+# The GL and X11 libraries OCP loads that its wheel leaves to the host,
+# from Debian 11 packages pinned by sha256 (brep/private/gl_libs.bzl).
+gl_libs = use_extension("//brep/private:gl_libs.bzl", "gl_libs")
+use_repo(gl_libs, "brep_gl_libs")
+
 # The helpers toolchain, which every rule that runs a tool needs.
 register_toolchains(
     "//brep/toolchains:cad",

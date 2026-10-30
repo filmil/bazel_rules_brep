@@ -19,7 +19,7 @@ entry point; everything under `//brep/private` may change without notice.
 <pre>
 load("@rules_brep//brep:defs.bzl", "cad_toolchain")
 
-cad_toolchain(<a href="#cad_toolchain-name">name</a>, <a href="#cad_toolchain-python_version">python_version</a>, <a href="#cad_toolchain-runner">runner</a>)
+cad_toolchain(<a href="#cad_toolchain-name">name</a>, <a href="#cad_toolchain-libs">libs</a>, <a href="#cad_toolchain-python_version">python_version</a>, <a href="#cad_toolchain-runner">runner</a>)
 </pre>
 
 The CAD toolchain, for `@rules_brep//brep:toolchain_type`.
@@ -27,7 +27,8 @@ The CAD toolchain, for `@rules_brep//brep:toolchain_type`.
 Its tool, `runner --part PART.py [--params JSON] [--summary OUT]`, imports
 a part script, calls its `build(params)` function, and checks that the
 result is a valid build123d shape. rules_brep registers one on the
-hermetic Python of rules_python, with build123d and OCP locked by hash.
+hermetic Python of rules_python, with build123d and OCP locked by hash,
+and the GL and X11 libraries OCP loads, from pinned Debian 11 packages.
 
 **ATTRIBUTES**
 
@@ -35,6 +36,7 @@ hermetic Python of rules_python, with build123d and OCP locked by hash.
 | Name  | Description | Type | Mandatory | Default |
 | :------------- | :------------- | :------------- | :------------- | :------------- |
 | <a id="cad_toolchain-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
+| <a id="cad_toolchain-libs"></a>libs |  Shared libraries the runner loads from the host otherwise, all in one directory; it goes on the runner's LD_LIBRARY_PATH.   | <a href="https://bazel.build/concepts/labels">Label</a> | optional |  `None`  |
 | <a id="cad_toolchain-python_version"></a>python_version |  The runner's Python version.   | String | required |  |
 | <a id="cad_toolchain-runner"></a>runner |  The CAD runner.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
 

@@ -64,6 +64,7 @@ toolchain(
 # The CAD runner (issue #7): build123d and OCP on the hermetic Python 3.12.
 cad_toolchain(
     name = "cad_impl",
+    libs = "@brep_gl_libs//:libs",
     python_version = "3.12",
     runner = "//brep/private/runner",
     # The integration module builds it, as a user's module would.
