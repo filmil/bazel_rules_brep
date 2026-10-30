@@ -31,6 +31,16 @@ def run_tool(
     and each variable named in `home_env`, at a fresh directory inside the
     action, so the tool reads and writes no host configuration (spec H3).
 
+    A toolchain can add to the tool's environment and inputs, through
+    optional fields of its `ToolchainInfo`:
+
+    * `env`: dict of fixed values;
+    * `path_env`: dict from name to a path relative to the execution root;
+      the tool sees it made absolute;
+    * `tool_inputs`: depset of files the tool reads, such as its libraries.
+
+    Values the rule passes win over the toolchain's.
+
     Args:
       ctx: the rule context. The rule's `toolchains` must include
         `toolchain_type` and `RUN_TOOL_TOOLCHAINS`.
@@ -58,8 +68,14 @@ def run_tool(
     pre = ctx.actions.args()
     for name in home_env:
         pre.add("--home-env", name)
-    for k in sorted(env.keys()):
-        pre.add("--env", "%s=%s" % (k, env[k]))
+    all_env = dict(getattr(info, "env", None) or {})
+    all_env.update(env)
+    for k in sorted(all_env.keys()):
+        pre.add("--env", "%s=%s" % (k, all_env[k]))
+    path_env = getattr(info, "path_env", None) or {}
+    for k in sorted(path_env.keys()):
+        if k not in all_env:
+            pre.add("--env-abs", "%s=%s" % (k, path_env[k]))
     for out in outputs:
         # The path, so a directory output (a tree artifact) is one value.
         pre.add("--output", out.path)
@@ -69,7 +85,11 @@ def run_tool(
     ctx.actions.run(
         executable = launcher,
         arguments = [pre] + list(arguments),
-        inputs = inputs,
+        inputs = depset(
+            inputs if type(inputs) == "list" else [],
+            transitive = ([inputs] if type(inputs) == "depset" else []) +
+                         [getattr(info, "tool_inputs", None) or depset()],
+        ),
         outputs = outputs,
         tools = [exe] + list(tools),
         mnemonic = mnemonic,

@@ -16,5 +16,11 @@ build --action_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
 build --incompatible_strict_action_env
 build --sandbox_default_allow_network=false
 
+# rules_python's default bootstrap starts every py_binary with
+# `#!/usr/bin/env python3`, the host's Python; "script" starts the hermetic
+# interpreter instead (the CAD runner, issue #7, and rules_python's own
+# wheel tools).
+common --@rules_python//python/config_settings:bootstrap_impl=script
+
 # Add your local user settings to file `user.bazelrc`.
 try-import %workspace%/user.bazelrc

@@ -112,3 +112,26 @@ func TestRunUsesPrivateHome(t *testing.T) {
 		t.Errorf("home %s still exists after the run", parts[0])
 	}
 }
+
+// --env-abs gives the tool an absolute path, made against the working
+// directory.
+func TestEnvAbs(t *testing.T) {
+	r, err := Parse([]string{"--env-abs", "LIBS=a/b", "--", "tool"})
+	if err != nil || len(r.EnvAbs) != 1 {
+		t.Fatalf("Parse: %v, %v", r, err)
+	}
+	if _, err := Parse([]string{"--env-abs", "nothing", "--", "tool"}); err == nil {
+		t.Error("--env-abs without = must fail")
+	}
+	dir := t.TempDir()
+	out := filepath.Join(dir, "env.txt")
+	r = Request{Tool: "/bin/sh", Args: []string{"-c", "echo \"$LIBS\" > " + out}, EnvAbs: []string{"LIBS=a/b"}}
+	if code, err := Run(r, dir); err != nil || code != 0 {
+		t.Fatalf("Run: %d, %v", code, err)
+	}
+	b, _ := os.ReadFile(out)
+	wd, _ := os.Getwd()
+	if got, want := strings.TrimSpace(string(b)), filepath.Join(wd, "a/b"); got != want {
+		t.Errorf("LIBS = %q, want %q", got, want)
+	}
+}

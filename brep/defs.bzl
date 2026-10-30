@@ -12,10 +12,13 @@ https://github.com/filmil/bazel_rules_brep). This file is the only public
 entry point; everything under `//brep/private` may change without notice.
 """
 
+load("//brep/private:cad_toolchain.bzl", _CadToolchainInfo = "CadToolchainInfo", _cad_toolchain = "cad_toolchain")
 load("//brep/private:determinism.bzl", _determinism_test = "determinism_test")
 load("//brep/private:swap_test.bzl", _swap_test = "swap_test")
 load("//brep/private:toolchains.bzl", _tool_toolchain = "tool_toolchain")
 
+CadToolchainInfo = _CadToolchainInfo
+cad_toolchain = _cad_toolchain
 determinism_test = _determinism_test
 swap_test = _swap_test
 tool_toolchain = _tool_toolchain

@@ -15,6 +15,13 @@ toolchain_type(
     visibility = ["//visibility:public"],
 )
 
+# The CAD toolchain: the CAD runner, which builds part scripts with
+# build123d and OCCT (issue #7). See CadToolchainInfo.
+toolchain_type(
+    name = "toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
 exports_files(
     ["defs.bzl"],
     visibility = ["//docs:__pkg__"],

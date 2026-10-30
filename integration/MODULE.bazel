@@ -20,3 +20,18 @@ local_path_override(
 )
 
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
+
+# Only so that .bazelrc can name rules_python's bootstrap flag; rules_brep
+# brings rules_python itself.
+bazel_dep(name = "rules_python", version = "2.4.6")
+
+# Under Bazel 8, a py_binary of rules_python (rules_brep's CAD runner) asks
+# for a C++ toolchain, though it compiles nothing; Bazel 9 does not. A user
+# brings one: here the self-contained zig toolchain, as this module, like
+# rules_brep's own, finds none on the host (.bazelrc).
+bazel_dep(name = "hermetic_cc_toolchain", version = "4.3.0")
+
+zig_toolchains = use_extension("@hermetic_cc_toolchain//toolchain:ext.bzl", "toolchains")
+use_repo(zig_toolchains, "zig_sdk")
+
+register_toolchains("@zig_sdk//toolchain:linux_amd64_gnu.2.31")

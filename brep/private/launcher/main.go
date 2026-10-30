@@ -4,7 +4,7 @@
 //
 // Usage:
 //
-//	launcher [--home-env NAME]... [--env NAME=VALUE]... [--output PATH]... -- TOOL ARGS...
+//	launcher [--home-env NAME]... [--env NAME=VALUE]... [--env-abs NAME=PATH]... [--output PATH]... -- TOOL ARGS...
 //
 // It makes a fresh directory inside the action's working directory, points
 // HOME, TMPDIR and the XDG base directories at it (and every NAME given with
@@ -12,6 +12,10 @@
 // removes the directory, and exits with the tool's status. So a tool that
 // writes settings or caches writes them where the action can see and
 // nothing else can (spec requirement H3).
+//
+// --env-abs sets NAME to PATH made absolute against the action's working
+// directory, for a tool that changes directory or a loader that needs an
+// absolute path (LD_LIBRARY_PATH).
 //
 // --output names a declared output of the action. The launcher passes the
 // list to the tool in RUN_TOOL_OUTPUTS, one path per line; real tools
@@ -31,6 +35,7 @@ import (
 type Request struct {
 	HomeEnv []string
 	Env     []string
+	EnvAbs  []string
 	Outputs []string
 	Tool    string
 	Args    []string
@@ -61,6 +66,11 @@ func Parse(args []string) (Request, error) {
 				return r, fmt.Errorf("--env %q: want NAME=VALUE", v)
 			}
 			r.Env = append(r.Env, v)
+		case "--env-abs":
+			if !strings.Contains(v, "=") {
+				return r, fmt.Errorf("--env-abs %q: want NAME=PATH", v)
+			}
+			r.EnvAbs = append(r.EnvAbs, v)
 		case "--output":
 			r.Outputs = append(r.Outputs, v)
 		default:
@@ -152,6 +162,14 @@ func Run(r Request, dir string) (int, error) {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			return 0, err
 		}
+	}
+	for _, kv := range r.EnvAbs {
+		k, v, _ := strings.Cut(kv, "=")
+		p, err := filepath.Abs(v)
+		if err != nil {
+			return 0, err
+		}
+		r.Env = append(r.Env, k+"="+p)
 	}
 	cmd := exec.Command(r.Tool, r.Args...)
 	cmd.Env = Environ(os.Environ(), home, r)

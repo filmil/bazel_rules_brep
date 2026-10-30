@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("//brep/private:cad_toolchain.bzl", "cad_toolchain")
 load("//brep/private:toolchains.bzl", "helpers_toolchain", "unsupported_platform_toolchain")
 
 # --@rules_brep//brep/toolchains:use_stub swaps every tool for the stub.
@@ -58,4 +59,48 @@ toolchain(
     name = "unsupported",
     toolchain = ":unsupported_impl",
     toolchain_type = "//brep:helpers_toolchain_type",
+)
+
+# The CAD runner (issue #7): build123d and OCP on the hermetic Python 3.12.
+cad_toolchain(
+    name = "cad_impl",
+    libs = "@brep_gl_libs//:libs",
+    python_version = "3.12",
+    runner = "//brep/private/runner",
+    # The integration module builds it, as a user's module would.
+    visibility = ["//visibility:public"],
+)
+
+toolchain(
+    name = "cad",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    target_settings = [":stub_off"],
+    toolchain = ":cad_impl",
+    toolchain_type = "//brep:toolchain_type",
+)
+
+# swap_test's CAD runner: the stub stands in for it.
+cad_toolchain(
+    name = "cad_stub_impl",
+    python_version = "3.12",
+    runner = "//brep/private/stub",
+)
+
+toolchain(
+    name = "cad_stub",
+    target_settings = [":stub_on"],
+    toolchain = ":cad_stub_impl",
+    toolchain_type = "//brep:toolchain_type",
+)
+
+# Any other execution platform, for the CAD toolchain type: registered last,
+# so it is picked only where the ones above do not match, and its analysis
+# says which platform is supported (spec P1).
+toolchain(
+    name = "cad_unsupported",
+    toolchain = ":unsupported_impl",
+    toolchain_type = "//brep:toolchain_type",
 )

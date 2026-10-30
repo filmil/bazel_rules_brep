@@ -21,6 +21,15 @@ build_test(
     ],
 )
 
+# The CAD toolchain builds in a module that depends on rules_brep: the
+# hermetic Python, and build123d and OCP from rules_brep's locked wheels
+# (issue #7).
+build_test(
+    name = "cad_toolchain_builds",
+    size = "small",
+    targets = ["@rules_brep//brep/toolchains:cad_impl"],
+)
+
 # The module resolved here is the one this consumer was written for.
 write_file(
     name = "api_version",
