@@ -91,3 +91,7 @@ their versions, sources and licenses, as they are added.
 * build123d 0.13.0 (Apache 2.0) and OCP, OCCT's Python binding, as
   cadquery-ocp-novtk 8.0.1.1.0 wheels (LGPL 2.1 with the OCCT exception),
   with their dependencies, pinned by hash in `requirements_lock.txt`.
+* The GL, X11 and expat libraries OCP loads, from Debian 11 packages pinned
+  by sha256 (`brep/private/gl_libs.bzl`): libglvnd (MIT-style), libX11,
+  libxcb, libXau, libXdmcp and expat (MIT), libbsd and libmd (BSD and
+  public domain). Each package's `copyright` file has the details.
