@@ -7,6 +7,7 @@ Usage:
            [--name NAME] [--step OUT.step] [--stl OUT.stl]
            [--stl-tolerance MM] [--stl-angular-tolerance RAD] [--path DIR]...
     runner --assemble SPEC.json --step OUT.step
+    runner --interference SPEC.json --report OUT.txt
 
 PART.py defines `build(params: dict)`, which returns a build123d shape.
 The runner imports it, calls it with the parameters, and checks that the
@@ -24,6 +25,10 @@ bytes repeat. Neither file holds a path of the build.
 child's STEP, moves it (millimeters; degrees, intrinsic X then Y then Z),
 names it, and writes one STEP of all of them, named NAME, the same way as
 --step.
+
+--interference reads the same spec, places the children, and writes one
+line per pair of them, in the order of the spec: "pair A B VOLUME", the
+volume (mm^3, six decimals) that A and B share. Touching faces share none.
 
 Every failure exits with a message that names the part script (or the
 assembly); an error raised in the script also prints its traceback.
@@ -174,10 +179,26 @@ def assemble(spec):
     return Compound(children=children)
 
 
+def interference(compound):
+    """One line per pair of children: the volume the two share."""
+    kids = list(compound.children)
+    lines = []
+    for i in range(len(kids)):
+        for j in range(i + 1, len(kids)):
+            # intersect() gives the shapes the two share, or None; faces
+            # and edges, where they only touch, have no volume.
+            common = kids[i].intersect(kids[j]) or []
+            vol = sum(max(getattr(c, "volume", 0.0), 0.0) for c in common)
+            lines.append("pair %s %s %.6f\n" % (kids[i].label, kids[j].label, vol))
+    return "".join(lines)
+
+
 def main(argv):
     p = argparse.ArgumentParser(prog="runner")
     p.add_argument("--part", help="the part script")
     p.add_argument("--assemble", help="an assembly spec (JSON), instead of --part")
+    p.add_argument("--interference", help="an assembly spec (JSON): report the volume each pair shares")
+    p.add_argument("--report", help="where --interference writes its report")
     p.add_argument("--params", default="{}", help="the parameters, as a JSON object")
     p.add_argument("--summary", help="write the volume and size here")
     p.add_argument("--name", default="part", help="the shape's name in the STEP file")
@@ -187,15 +208,22 @@ def main(argv):
     p.add_argument("--stl-angular-tolerance", type=float, default=0.1, help="the STL mesh's angular deflection, radians")
     p.add_argument("--path", action="append", default=[], help="a directory to import the part's dependencies from")
     a = p.parse_args(argv)
-    if bool(a.part) == bool(a.assemble):
-        p.error("give one of --part and --assemble")
+    if sum(bool(x) for x in [a.part, a.assemble, a.interference]) != 1:
+        p.error("give one of --part, --assemble and --interference")
+    if a.interference and (a.step or a.stl or a.summary or not a.report):
+        p.error("--interference takes only --report")
     if a.assemble:
         extra = [f for f, v in [("--summary", a.summary), ("--stl", a.stl), ("--path", a.path)] if v]
         if extra or a.name != "part":
             p.error("--assemble takes only --step (the name is the spec's); got %s" % (extra + (["--name"] if a.name != "part" else [])))
-    what = a.part or a.assemble
+    what = a.part or a.assemble or a.interference
     try:
-        if a.assemble:
+        if a.interference:
+            spec = read_spec(a.interference)
+            report = interference(assemble(spec))
+            with open(a.report, "w", encoding="utf-8") as f:
+                f.write(report)
+        elif a.assemble:
             run_assembly(a)
         else:
             run(a)
@@ -206,15 +234,21 @@ def main(argv):
         raise PartError("%s: %s" % (what, e)) from None
 
 
-def run_assembly(a):
-    """Writes the assembly that the spec describes as STEP."""
+def read_spec(path):
+    """The assembly spec at path."""
     try:
-        with open(a.assemble, encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             spec = json.load(f)
     except (OSError, json.JSONDecodeError) as e:
         raise PartError("reading the spec failed: %s" % e)
     if not isinstance(spec, dict) or not isinstance(spec.get("name"), str):
         raise PartError("the spec must be an object with a name")
+    return spec
+
+
+def run_assembly(a):
+    """Writes the assembly that the spec describes as STEP."""
+    spec = read_spec(a.assemble)
     if not a.step:
         raise PartError("--assemble needs --step")
     write_step(assemble(spec), spec["name"], a.step, epoch_timestamp())

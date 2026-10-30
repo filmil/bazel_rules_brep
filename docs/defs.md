@@ -222,6 +222,45 @@ volume and box miss, such as a hole that moved.
 | <a id="geometry_equal_test-rel_tolerance"></a>rel_tolerance |  How far two numbers may be apart, as a fraction of the larger in size: the part of the tolerance that scales with each quantity's own unit and size.   | String | optional |  `"0.000001"`  |
 
 
+<a id="interference_test"></a>
+
+## interference_test
+
+<pre>
+load("@rules_brep//brep:defs.bzl", "interference_test")
+
+interference_test(<a href="#interference_test-name">name</a>, <a href="#interference_test-assembly">assembly</a>, <a href="#interference_test-epsilon_mm3">epsilon_mm3</a>, <a href="#interference_test-expect">expect</a>)
+</pre>
+
+Fails when two parts of an assembly overlap.
+
+```starlark
+interference_test(
+    name = "stand_interference_test",
+    assembly = ":stand",
+)
+```
+
+Every pair of the assembly's children is intersected; a pair that shares
+more than `epsilon_mm3` of volume fails the test, and the message names
+each such pair and the volume. Parts that only touch, along a face or an
+edge, share none. The intersection runs on the CAD toolchain as a build
+action; the check is Go.
+
+`expect = "overlap"` is for a known-bad assembly (spec T3): the test then
+fails when no pair overlaps.
+
+**ATTRIBUTES**
+
+
+| Name  | Description | Type | Mandatory | Default |
+| :------------- | :------------- | :------------- | :------------- | :------------- |
+| <a id="interference_test-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
+| <a id="interference_test-assembly"></a>assembly |  The assembly (`cad_assembly`).   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+| <a id="interference_test-epsilon_mm3"></a>epsilon_mm3 |  The shared volume, in mm^3, that still counts as none: room for rounding at faces that touch.   | String | optional |  `"0.001"`  |
+| <a id="interference_test-expect"></a>expect |  "none", or "overlap" for a known-bad assembly.   | String | optional |  `"none"`  |
+
+
 <a id="tool_toolchain"></a>
 
 ## tool_toolchain

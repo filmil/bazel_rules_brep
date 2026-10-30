@@ -215,6 +215,23 @@ class AssemblyTest(unittest.TestCase):
         self.assertEqual([3, 1, 2], sizes["turned"][1])
         self.assertAlmostEqual(100, sizes["turned"][0].X, places=6)
 
+    def test_interference(self):
+        # good.py is a 1 x 2 x 3 box about the origin (volume 6).
+        a = self.part_step("a")
+        kids = [
+            {"name": "base", "step": a, "pos": [0, 0, 0], "rot": [0, 0, 0]},
+            {"name": "half_in", "step": a, "pos": [0.5, 0, 0], "rot": [0, 0, 0]},
+            {"name": "touching", "step": a, "pos": [-1, 0, 0], "rot": [0, 0, 0]},
+            {"name": "far", "step": a, "pos": [50, 0, 0], "rot": [0, 0, 0]},
+        ]
+        report = runner.interference(runner.assemble({"name": "s", "children": kids}))
+        got = {tuple(l.split()[1:3]): float(l.split()[3]) for l in report.splitlines()}
+        self.assertEqual(6, len(got))
+        self.assertAlmostEqual(3.0, got[("base", "half_in")], places=6)  # half of 6
+        self.assertAlmostEqual(0.0, got[("base", "touching")], places=6)  # a shared face
+        self.assertAlmostEqual(0.0, got[("base", "far")], places=6)
+        self.assertAlmostEqual(0.0, got[("half_in", "far")], places=6)
+
     def test_failures(self):
         with self.assertRaises(runner.PartError) as cm:
             self.assemble([])
