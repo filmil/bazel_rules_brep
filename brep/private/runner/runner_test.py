@@ -73,5 +73,48 @@ class RunnerTest(unittest.TestCase):
         self.assertIn("must be a JSON object, not list", self.failure("good.py", "[1]"))
 
 
+class ExportTest(unittest.TestCase):
+    def export(self, epoch="0"):
+        d = tempfile.mkdtemp()
+        step, stl = os.path.join(d, "x.step"), os.path.join(d, "x.stl")
+        os.environ["SOURCE_DATE_EPOCH"] = epoch
+        try:
+            runner.main(["--part", part("good.py"), "--name", "bracket", "--step", step, "--stl", stl])
+        finally:
+            del os.environ["SOURCE_DATE_EPOCH"]
+        with open(step, "rb") as f:
+            step_bytes = f.read()
+        with open(stl, "rb") as f:
+            stl_bytes = f.read()
+        return d, step_bytes, stl_bytes
+
+    def test_same_bytes_twice(self):
+        d1, step1, stl1 = self.export()
+        d2, step2, stl2 = self.export()
+        self.assertEqual(step1, step2)
+        self.assertEqual(stl1, stl2)
+
+    def test_step_header(self):
+        d, step, _ = self.export()
+        text = step.decode("latin-1")
+        self.assertTrue(text.startswith("ISO-10303-21;"))
+        self.assertIn("FILE_NAME('bracket','1970-01-01T00:00:00'", text)
+        self.assertIn("build123d", text)
+        self.assertNotIn(d, text)  # no path of the build
+
+    def test_epoch(self):
+        _, step, _ = self.export(epoch="86400")
+        self.assertIn("'1970-01-02T00:00:00'", step.decode("latin-1"))
+        with self.assertRaises(runner.PartError):
+            self.export(epoch="soon")
+
+    def test_stl(self):
+        _, _, stl = self.export()
+        # Binary STL: an 80-byte header, a triangle count, 50 bytes each.
+        n = int.from_bytes(stl[80:84], "little")
+        self.assertGreaterEqual(n, 12)  # a box has at least 12 triangles
+        self.assertEqual(84 + 50 * n, len(stl))
+
+
 if __name__ == "__main__":
     unittest.main()

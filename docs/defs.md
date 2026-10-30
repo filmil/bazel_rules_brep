@@ -12,6 +12,49 @@ The rules arrive in milestone M4 (see the issues of
 https://github.com/filmil/bazel_rules_brep). This file is the only public
 entry point; everything under `//brep/private` may change without notice.
 
+<a id="cad_part"></a>
+
+## cad_part
+
+<pre>
+load("@rules_brep//brep:defs.bzl", "cad_part")
+
+cad_part(<a href="#cad_part-name">name</a>, <a href="#cad_part-deps">deps</a>, <a href="#cad_part-src">src</a>, <a href="#cad_part-params">params</a>, <a href="#cad_part-stl_angular_tolerance">stl_angular_tolerance</a>, <a href="#cad_part-stl_tolerance">stl_tolerance</a>)
+</pre>
+
+A part script, built into `<name>.step` and `<name>.stl`.
+
+```starlark
+cad_part(
+    name = "bracket",
+    src = "bracket.py",
+    params = {"thickness": "3"},
+)
+```
+
+The script defines `build(params: dict)`, which returns a build123d solid.
+It runs with build123d and OCCT on the CAD toolchain.
+
+* `<name>.step` names the shape `<name>`, and its header time is
+  `--@rules_brep//brep:source_date_epoch` (default 1970-01-01).
+* `<name>.stl` is binary, meshed with parallel meshing off, so the same
+  part gives the same bytes on the same platform. Across platforms the
+  geometry may differ in the last digits; `geometry_equal_test` compares
+  by tolerance (spec D3).
+
+**ATTRIBUTES**
+
+
+| Name  | Description | Type | Mandatory | Default |
+| :------------- | :------------- | :------------- | :------------- | :------------- |
+| <a id="cad_part-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
+| <a id="cad_part-deps"></a>deps |  Python files the script imports, from its own directory.   | <a href="https://bazel.build/concepts/labels">List of labels</a> | optional |  `[]`  |
+| <a id="cad_part-src"></a>src |  The part script.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+| <a id="cad_part-params"></a>params |  Parameters for `build(params)`. Each value is JSON: `"3"` is the number 3, `'"steel"'` the string steel, `"true"` a boolean.   | <a href="https://bazel.build/rules/lib/core/dict">Dictionary: String -> String</a> | optional |  `{}`  |
+| <a id="cad_part-stl_angular_tolerance"></a>stl_angular_tolerance |  The STL mesh's angular deflection, in radians.   | String | optional |  `"0.1"`  |
+| <a id="cad_part-stl_tolerance"></a>stl_tolerance |  The STL mesh's linear deflection, in mm.   | String | optional |  `"0.001"`  |
+
+
 <a id="cad_toolchain"></a>
 
 ## cad_toolchain
@@ -76,6 +119,27 @@ toolchain(
 | :------------- | :------------- | :------------- | :------------- | :------------- |
 | <a id="tool_toolchain-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
 | <a id="tool_toolchain-tools"></a>tools |  Executable targets, each mapped to the name rules use for it.   | <a href="https://bazel.build/rules/lib/core/dict">Dictionary: Label -> String</a> | required |  |
+
+
+<a id="CadPartInfo"></a>
+
+## CadPartInfo
+
+<pre>
+load("@rules_brep//brep:defs.bzl", "CadPartInfo")
+
+CadPartInfo(<a href="#CadPartInfo-step">step</a>, <a href="#CadPartInfo-stl">stl</a>, <a href="#CadPartInfo-src">src</a>)
+</pre>
+
+A built part.
+
+**FIELDS**
+
+| Name  | Description |
+| :------------- | :------------- |
+| <a id="CadPartInfo-step"></a>step |  File: the part as STEP.    |
+| <a id="CadPartInfo-stl"></a>stl |  File: the part as binary STL.    |
+| <a id="CadPartInfo-src"></a>src |  File: the part script.    |
 
 
 <a id="CadToolchainInfo"></a>

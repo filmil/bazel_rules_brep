@@ -8,11 +8,13 @@ bzl_library(
         "cad_toolchain.bzl",
         "determinism.bzl",
         "gl_libs.bzl",
+        "part.bzl",
         "run_tool.bzl",
         "swap_test.bzl",
         "toolchains.bzl",
     ],
     visibility = ["//brep:__subpackages__"],
+    deps = ["@bazel_skylib//rules:common_settings"],
 )
 
 # A setting that changes nothing but the configuration. determinism_test

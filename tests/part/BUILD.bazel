@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# cad_part (issue #8): a bracket that imports a helper, built into STEP and
+# STL through the CAD toolchain; the files read back; the same bytes in two
+# configurations; and parameters that fail analysis.
+load("@rules_go//go:def.bzl", "go_test")
+load("//brep:defs.bzl", "cad_part", "determinism_test", "swap_test")
+load("//tests:fails_test.bzl", "fails_test")
+load(":action_test.bzl", "part_action_test")
+
+cad_part(
+    name = "bracket",
+    src = "bracket.py",
+    params = {"thickness": "3"},
+    deps = ["dims.py"],
+)
+
+part_action_test(
+    name = "bracket_action_test",
+    size = "small",
+    params_json = "{\"thickness\": 3}",
+    target_under_test = ":bracket",
+)
+
+swap_test(
+    name = "bracket_swap_test",
+    size = "small",
+    targets = [":bracket"],
+)
+
+determinism_test(
+    name = "bracket_determinism_test",
+    size = "small",
+    target = ":bracket",
+)
+
+go_test(
+    name = "bracket_files_test",
+    size = "small",
+    srcs = ["files_test.go"],
+    args = ["--files=$(rlocationpaths :bracket)"],
+    data = [":bracket"],
+    pure = "on",
+    deps = ["@rules_go//go/runfiles"],
+)
+
+# A value that is not JSON: a string needs its quotes.
+cad_part(
+    name = "bad_param",
+    src = "bracket.py",
+    params = {"material": "steel"},
+    tags = ["manual"],
+    deps = ["dims.py"],
+)
+
+fails_test(
+    name = "bad_param_test",
+    size = "small",
+    message = "is not a JSON value",
+    target_under_test = ":bad_param",
+)
+
+cad_part(
+    name = "bad_tolerance",
+    src = "bracket.py",
+    stl_tolerance = "0",
+    tags = ["manual"],
+    deps = ["dims.py"],
+)
+
+fails_test(
+    name = "bad_tolerance_test",
+    size = "small",
+    message = "STL tolerances must be positive",
+    target_under_test = ":bad_tolerance",
+)
