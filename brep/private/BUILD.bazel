@@ -9,6 +9,7 @@ bzl_library(
         "determinism.bzl",
         "gl_libs.bzl",
         "part.bzl",
+        "render.bzl",
         "run_tool.bzl",
         "swap_test.bzl",
         "toolchains.bzl",

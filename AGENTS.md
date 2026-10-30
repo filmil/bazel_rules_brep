@@ -56,8 +56,9 @@ the change.
 * **Documentation is generated.** After changing a `.bzl` file, run
   `bazel run //docs:update_docs`; `bazel test //...` fails until then.
 * **Linux x86_64 only** in v1.
-* **Python only where the CAD library needs it.** Part scripts and the CAD
-  runner are Python (build123d and OCCT); every checker and helper is Go.
+* **Python only where the CAD library needs it.** Part scripts, the CAD
+  runner and the renderer are Python (build123d, OCCT and matplotlib);
+  every checker and helper is Go.
 * **Commits for a BCR pull request carry no `Co-Authored-By` trailer**
   (the `bazel-bcr-publish` skill says why).
 
