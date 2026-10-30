@@ -2,7 +2,9 @@
 """Tests of the CAD runner's checks and messages."""
 
 import ctypes
+import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -143,6 +145,94 @@ class ExportTest(unittest.TestCase):
             self.export(part_name="uses_helper.py")
         _, step, _ = self.export(extra=["--path", os.path.join(D, "lib")], part_name="uses_helper.py")
         self.assertTrue(step.startswith(b"ISO-10303-21;"))
+
+
+class AssemblyTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        os.environ["SOURCE_DATE_EPOCH"] = "0"
+        self.addCleanup(os.environ.pop, "SOURCE_DATE_EPOCH", None)
+
+    def part_step(self, name):
+        out = os.path.join(self.tmp.name, name + ".step")
+        runner.main(["--part", part("good.py"), "--name", name, "--step", out])
+        return out
+
+    def assemble(self, children):
+        spec = os.path.join(self.tmp.name, "spec.json")
+        with open(spec, "w", encoding="utf-8") as f:
+            json.dump({"name": "stack", "children": children}, f)
+        out = os.path.join(self.tmp.name, "stack.step")
+        runner.main(["--assemble", spec, "--step", out])
+        with open(out, "rb") as f:
+            return f.read().decode("latin-1")
+
+    def test_named_children(self):
+        a = self.part_step("a")
+        text = self.assemble([
+            {"name": "lower", "step": a, "pos": [0, 0, 0], "rot": [0, 0, 0]},
+            {"name": "upper", "step": a, "pos": [0, 0, 10], "rot": [0, 0, 90]},
+        ])
+        self.assertIn("FILE_NAME('stack','1970-01-01T00:00:00'", text)
+        for name in ["'lower'", "'upper'"]:
+            self.assertIn(name, text)
+        self.assertNotIn(self.tmp.name, text)
+
+    def test_same_bytes_in_two_processes(self):
+        # OCCT numbers assembly links with a counter that lives as long as
+        # the process; Bazel runs each action as a process of its own, so
+        # that is the comparison that matters.
+        a = self.part_step("a")
+        spec = os.path.join(self.tmp.name, "spec.json")
+        with open(spec, "w", encoding="utf-8") as f:
+            json.dump({"name": "stack", "children": [
+                {"name": "one", "step": a, "pos": [1, 2, 3], "rot": [10, 20, 30]}]}, f)
+        libdirs = sorted({os.path.dirname(os.path.abspath(p)) for p in os.environ["BREP_GL_LIBS"].split()})
+        env = dict(os.environ, PYTHONPATH=os.pathsep.join(sys.path), LD_LIBRARY_PATH=os.pathsep.join(libdirs))
+        outs = []
+        for i in range(2):
+            out = os.path.join(self.tmp.name, "stack%d.step" % i)
+            subprocess.run([sys.executable, runner.__file__, "--assemble", spec, "--step", out], env=env, check=True)
+            with open(out, "rb") as f:
+                outs.append(f.read())
+        self.assertEqual(outs[0], outs[1])
+
+    def test_placement(self):
+        # good.py is a 1 x 2 x 3 box about the origin. rot is intrinsic X-Y-Z:
+        # [90, 90, 0] turns its X edge to world Y, Y to Z, and Z to X, so
+        # the bounding box is 3 x 1 x 2. Extrinsic X-Y-Z would give 2 x 3 x 1.
+        a = self.part_step("a")
+        asm = runner.assemble({"name": "s", "children": [
+            {"name": "still", "step": a, "pos": [0, 0, 0], "rot": [0, 0, 0]},
+            {"name": "turned", "step": a, "pos": [100, 0, 0], "rot": [90, 90, 0]},
+        ]})
+        sizes = {}
+        for child in asm.children:
+            bb = child.bounding_box()
+            sizes[child.label] = (bb.center(), [round(v, 6) for v in (bb.size.X, bb.size.Y, bb.size.Z)])
+        self.assertEqual([1, 2, 3], sizes["still"][1])
+        self.assertEqual([3, 1, 2], sizes["turned"][1])
+        self.assertAlmostEqual(100, sizes["turned"][0].X, places=6)
+
+    def test_failures(self):
+        with self.assertRaises(runner.PartError) as cm:
+            self.assemble([])
+        self.assertIn("no children", str(cm.exception))
+        with self.assertRaises(runner.PartError) as cm:
+            self.assemble([{"name": "x", "step": "/nonexistent.step", "pos": [0, 0, 0], "rot": [0, 0, 0]}])
+        self.assertIn("child x", str(cm.exception))
+        with self.assertRaises(runner.PartError) as cm:
+            self.assemble([{"name": "x", "pos": [0, 0, 0]}])
+        self.assertIn("a child lacks", str(cm.exception))
+        bad = os.path.join(self.tmp.name, "bad.json")
+        with open(bad, "w", encoding="utf-8") as f:
+            f.write("{nope")
+        with self.assertRaises(runner.PartError) as cm:
+            runner.main(["--assemble", bad, "--step", os.path.join(self.tmp.name, "o.step")])
+        self.assertIn("bad.json: reading the spec failed", str(cm.exception))
+        with self.assertRaises(SystemExit):
+            runner.main(["--assemble", bad, "--step", "o.step", "--stl", "o.stl"])
 
 
 if __name__ == "__main__":

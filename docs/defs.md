@@ -12,6 +12,48 @@ The rules arrive in milestone M4 (see the issues of
 https://github.com/filmil/bazel_rules_brep). This file is the only public
 entry point; everything under `//brep/private` may change without notice.
 
+<a id="cad_assembly"></a>
+
+## cad_assembly
+
+<pre>
+load("@rules_brep//brep:defs.bzl", "cad_assembly")
+
+cad_assembly(<a href="#cad_assembly-name">name</a>, <a href="#cad_assembly-parts">parts</a>)
+</pre>
+
+Parts placed together, written as `<name>.step` with a named child each.
+
+```starlark
+cad_assembly(
+    name = "stand",
+    parts = {
+        ":base": '{"pos": [0, 0, 0]}',
+        ":bracket": '[{"pos": [10, 0, 5]}, {"pos": [40, 0, 5], "rot": [0, 0, 180]}]',
+    },
+)
+```
+
+Each value places its part: a JSON object with `pos` (x, y, z in mm) and
+`rot` (degrees: about X, then about the turned Y, then about the turned Z,
+that is intrinsic X-Y-Z Euler angles), both defaulting to zero, or a list
+of such objects to place the part more than once. Placements are in the
+part's own frame, as `cad_part` built it. A child is named after its part
+when placed once (also from a list of one), and `<part>_1`, `<part>_2`,
+... when placed more than once.
+
+The header is normalized as `cad_part`'s: the assembly's name, and the
+time `--@rules_brep//brep:source_date_epoch`.
+
+**ATTRIBUTES**
+
+
+| Name  | Description | Type | Mandatory | Default |
+| :------------- | :------------- | :------------- | :------------- | :------------- |
+| <a id="cad_assembly-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
+| <a id="cad_assembly-parts"></a>parts |  The parts (`cad_part` targets), each mapped to its placement(s) as JSON.   | <a href="https://bazel.build/rules/lib/core/dict">Dictionary: Label -> String</a> | required |  |
+
+
 <a id="cad_part"></a>
 
 ## cad_part
@@ -166,6 +208,26 @@ toolchain(
 | :------------- | :------------- | :------------- | :------------- | :------------- |
 | <a id="tool_toolchain-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
 | <a id="tool_toolchain-tools"></a>tools |  Executable targets, each mapped to the name rules use for it.   | <a href="https://bazel.build/rules/lib/core/dict">Dictionary: Label -> String</a> | required |  |
+
+
+<a id="CadAssemblyInfo"></a>
+
+## CadAssemblyInfo
+
+<pre>
+load("@rules_brep//brep:defs.bzl", "CadAssemblyInfo")
+
+CadAssemblyInfo(<a href="#CadAssemblyInfo-step">step</a>, <a href="#CadAssemblyInfo-children">children</a>)
+</pre>
+
+A built assembly.
+
+**FIELDS**
+
+| Name  | Description |
+| :------------- | :------------- |
+| <a id="CadAssemblyInfo-step"></a>step |  File: the assembly as STEP, one named child per placement.    |
+| <a id="CadAssemblyInfo-children"></a>children |  list of struct(name, part, pos, rot): each placement, in order; `part` is the part's CadPartInfo.    |
 
 
 <a id="CadPartInfo"></a>

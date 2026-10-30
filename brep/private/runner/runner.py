@@ -6,6 +6,7 @@ Usage:
     runner --part PART.py [--params JSON] [--summary OUT]
            [--name NAME] [--step OUT.step] [--stl OUT.stl]
            [--stl-tolerance MM] [--stl-angular-tolerance RAD] [--path DIR]...
+    runner --assemble SPEC.json --step OUT.step
 
 PART.py defines `build(params: dict)`, which returns a build123d shape.
 The runner imports it, calls it with the parameters, and checks that the
@@ -18,8 +19,14 @@ SOURCE_DATE_EPOCH (seconds since 1970, UTC; 0 if unset). --stl writes it
 as binary STL, meshed one face at a time (parallel meshing off), so the
 bytes repeat. Neither file holds a path of the build.
 
-Every failure exits with a message that names the part script; an error
-raised in the script also prints its traceback.
+--assemble reads a JSON spec: {"name": ..., "children": [{"name": ...,
+"step": PATH, "pos": [x, y, z], "rot": [rx, ry, rz]}, ...]}. It loads each
+child's STEP, moves it (millimeters; degrees, intrinsic X then Y then Z),
+names it, and writes one STEP of all of them, named NAME, the same way as
+--step.
+
+Every failure exits with a message that names the part script (or the
+assembly); an error raised in the script also prints its traceback.
 
 This is the only Python in rules_brep: build123d and OCCT are Python
 libraries. Every checker is Go.
@@ -141,9 +148,36 @@ def write_stl(shape, path, tolerance, angular_tolerance):
         raise PartError("writing the STL failed")
 
 
+def assemble(spec):
+    """The compound of the spec's children, each moved and named."""
+    from build123d import Compound, Location, import_step
+
+    children = []
+    loaded = {}
+    for c in spec.get("children", []):
+        try:
+            name, step, pos, rot = c["name"], c["step"], c["pos"], c["rot"]
+        except (KeyError, TypeError) as e:
+            raise PartError("a child lacks %s: %r" % (e, c))
+        if step not in loaded:
+            # Each part's file once, however often it is placed.
+            try:
+                loaded[step] = import_step(step)
+            except Exception as e:
+                raise PartError("child %s: reading %s failed: %s" % (name, step, e))
+        # moved() returns a new shape, placed in the part's own frame.
+        moved = loaded[step].moved(Location(tuple(pos), tuple(rot)))
+        moved.label = name
+        children.append(moved)
+    if not children:
+        raise PartError("the assembly has no children")
+    return Compound(children=children)
+
+
 def main(argv):
     p = argparse.ArgumentParser(prog="runner")
-    p.add_argument("--part", required=True, help="the part script")
+    p.add_argument("--part", help="the part script")
+    p.add_argument("--assemble", help="an assembly spec (JSON), instead of --part")
     p.add_argument("--params", default="{}", help="the parameters, as a JSON object")
     p.add_argument("--summary", help="write the volume and size here")
     p.add_argument("--name", default="part", help="the shape's name in the STEP file")
@@ -153,13 +187,37 @@ def main(argv):
     p.add_argument("--stl-angular-tolerance", type=float, default=0.1, help="the STL mesh's angular deflection, radians")
     p.add_argument("--path", action="append", default=[], help="a directory to import the part's dependencies from")
     a = p.parse_args(argv)
+    if bool(a.part) == bool(a.assemble):
+        p.error("give one of --part and --assemble")
+    if a.assemble:
+        extra = [f for f, v in [("--summary", a.summary), ("--stl", a.stl), ("--path", a.path)] if v]
+        if extra or a.name != "part":
+            p.error("--assemble takes only --step (the name is the spec's); got %s" % (extra + (["--name"] if a.name != "part" else [])))
+    what = a.part or a.assemble
     try:
-        run(a)
+        if a.assemble:
+            run_assembly(a)
+        else:
+            run(a)
     except PartError as e:
-        # Every message names the part script.
-        if str(e).startswith(a.part):
+        # Every message names the part script, or the assembly spec.
+        if str(e).startswith(what):
             raise
-        raise PartError("%s: %s" % (a.part, e)) from None
+        raise PartError("%s: %s" % (what, e)) from None
+
+
+def run_assembly(a):
+    """Writes the assembly that the spec describes as STEP."""
+    try:
+        with open(a.assemble, encoding="utf-8") as f:
+            spec = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        raise PartError("reading the spec failed: %s" % e)
+    if not isinstance(spec, dict) or not isinstance(spec.get("name"), str):
+        raise PartError("the spec must be an object with a name")
+    if not a.step:
+        raise PartError("--assemble needs --step")
+    write_step(assemble(spec), spec["name"], a.step, epoch_timestamp())
 
 
 def run(a):

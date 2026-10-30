@@ -12,6 +12,7 @@ https://github.com/filmil/bazel_rules_brep). This file is the only public
 entry point; everything under `//brep/private` may change without notice.
 """
 
+load("//brep/private:assembly.bzl", _CadAssemblyInfo = "CadAssemblyInfo", _cad_assembly = "cad_assembly")
 load("//brep/private:cad_toolchain.bzl", _CadToolchainInfo = "CadToolchainInfo", _cad_toolchain = "cad_toolchain")
 load("//brep/private:determinism.bzl", _determinism_test = "determinism_test")
 load("//brep/private:part.bzl", _CadPartInfo = "CadPartInfo", _cad_part = "cad_part")
@@ -19,8 +20,10 @@ load("//brep/private:render.bzl", _cad_render = "cad_render")
 load("//brep/private:swap_test.bzl", _swap_test = "swap_test")
 load("//brep/private:toolchains.bzl", _tool_toolchain = "tool_toolchain")
 
+CadAssemblyInfo = _CadAssemblyInfo
 CadPartInfo = _CadPartInfo
 CadToolchainInfo = _CadToolchainInfo
+cad_assembly = _cad_assembly
 cad_part = _cad_part
 cad_render = _cad_render
 cad_toolchain = _cad_toolchain
