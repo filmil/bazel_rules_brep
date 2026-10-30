@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # The example consumer. It uses only the public API of hdlf_rules_brep, as a
-# user of the published module would. The e2e bracket and enclosure arrive
-# with the cad_part rule (milestone M4).
+# user of the published module would; each rule's end-to-end test is in a
+# package of its own.
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
