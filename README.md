@@ -35,7 +35,7 @@ common --registry=https://bcr.bazel.build
 The rules are documented in [docs/defs.md](docs/defs.md). A part:
 
 ```starlark
-load("@rules_brep//brep:defs.bzl", "cad_part")
+load("@rules_brep//brep:defs.bzl", "cad_part", "cad_render")
 
 cad_part(
     name = "bracket",
@@ -44,7 +44,18 @@ cad_part(
 )
 ```
 
-`bazel build :bracket` writes `bracket.step` and `bracket.stl`.
+`bazel build :bracket` writes `bracket.step` and `bracket.stl`. Its views,
+as PNG, with no OpenGL:
+
+```starlark
+cad_render(
+    name = "bracket_views",
+    src = ":bracket",
+)
+```
+
+`bazel build :bracket_views` writes `bracket_views_front.png`, and the
+back, left, right, top and bottom views.
 
 The CAD runner is Python (build123d and OCCT) on the hermetic interpreter
 of rules_python; rules_brep registers it. Add this to `.bazelrc`, or

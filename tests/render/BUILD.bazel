@@ -1,0 +1,199 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# cad_render (issue #10): six views of a part through the CAD toolchain's
+# renderer; the PNG files read back; the same bytes in two configurations;
+# and attributes that fail analysis.
+load("@rules_go//go:def.bzl", "go_test")
+load("//brep:defs.bzl", "cad_part", "cad_render", "determinism_test", "swap_test")
+load("//tests:fails_test.bzl", "fails_test")
+load(":action_test.bzl", "render_action_test")
+
+cad_part(
+    name = "block",
+    src = "block.py",
+)
+
+cad_render(
+    name = "views",
+    size = 128,
+    src = ":block",
+)
+
+render_action_test(
+    name = "views_action_test",
+    size = "small",
+    name_under_test = "views",
+    pixels = 128,
+    target_under_test = ":views",
+    views = [
+        "front",
+        "back",
+        "left",
+        "right",
+        "top",
+        "bottom",
+    ],
+)
+
+# One view, from a target that is not a cad_part but names one STEP file.
+filegroup(
+    name = "block_files",
+    srcs = [":block"],
+)
+
+cad_render(
+    name = "top",
+    src = ":block_files",
+    views = ["top"],
+)
+
+render_action_test(
+    name = "top_action_test",
+    size = "small",
+    name_under_test = "top",
+    pixels = 512,
+    target_under_test = ":top",
+    views = ["top"],
+)
+
+swap_test(
+    name = "views_swap_test",
+    size = "small",
+    targets = [":views"],
+)
+
+determinism_test(
+    name = "views_determinism_test",
+    size = "small",
+    target = ":views",
+)
+
+go_test(
+    name = "views_files_test",
+    size = "small",
+    srcs = ["files_test.go"],
+    args = ["--files=$(rlocationpaths :views)"],
+    data = [":views"],
+    pure = "on",
+    deps = ["@rules_go//go/runfiles"],
+)
+
+# Attributes that fail analysis, each with a message that says why.
+filegroup(
+    name = "no_step",
+    srcs = ["block.py"],
+)
+
+cad_render(
+    name = "no_step_render",
+    src = ":no_step",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "no_step_test",
+    size = "small",
+    message = "does not produce any cad_render src files",
+    target_under_test = ":no_step_render",
+)
+
+cad_part(
+    name = "block_again",
+    src = "block.py",
+    tags = ["manual"],
+)
+
+filegroup(
+    name = "two_steps",
+    srcs = [
+        ":block",
+        ":block_again",
+    ],
+    tags = ["manual"],
+)
+
+cad_render(
+    name = "two_steps_render",
+    src = ":two_steps",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "two_steps_test",
+    size = "small",
+    message = "name one STEP file; @@//tests/render:two_steps has 2",
+    target_under_test = ":two_steps_render",
+)
+
+cad_render(
+    name = "bad_view",
+    src = ":block",
+    tags = ["manual"],
+    views = ["side"],
+)
+
+fails_test(
+    name = "bad_view_test",
+    size = "small",
+    message = "each view is one of",
+    target_under_test = ":bad_view",
+)
+
+cad_render(
+    name = "view_twice",
+    src = ":block",
+    tags = ["manual"],
+    views = [
+        "top",
+        "top",
+    ],
+)
+
+fails_test(
+    name = "view_twice_test",
+    size = "small",
+    message = "views names a view twice",
+    target_under_test = ":view_twice",
+)
+
+cad_render(
+    name = "no_views",
+    src = ":block",
+    tags = ["manual"],
+    views = [],
+)
+
+fails_test(
+    name = "no_views_test",
+    size = "small",
+    message = "views is empty",
+    target_under_test = ":no_views",
+)
+
+cad_render(
+    name = "too_small",
+    size = 16,
+    src = ":block",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "too_small_test",
+    size = "small",
+    message = "want 64 to 4096 pixels",
+    target_under_test = ":too_small",
+)
+
+cad_render(
+    name = "too_large",
+    size = 4097,
+    src = ":block",
+    tags = ["manual"],
+)
+
+fails_test(
+    name = "too_large_test",
+    size = "small",
+    message = "want 64 to 4096 pixels",
+    target_under_test = ":too_large",
+)

@@ -56,6 +56,48 @@ It runs with build123d and OCCT on the CAD toolchain.
 | <a id="cad_part-stl_tolerance"></a>stl_tolerance |  The STL mesh's linear deflection, in mm.   | String | optional |  `"0.001"`  |
 
 
+<a id="cad_render"></a>
+
+## cad_render
+
+<pre>
+load("@rules_brep//brep:defs.bzl", "cad_render")
+
+cad_render(<a href="#cad_render-name">name</a>, <a href="#cad_render-src">src</a>, <a href="#cad_render-size">size</a>, <a href="#cad_render-views">views</a>)
+</pre>
+
+Views of a model as PNG: `<name>_<view>.png`.
+
+```starlark
+cad_render(
+    name = "bracket_views",
+    src = ":bracket",
+)
+```
+
+`src` is a `cad_part`, or a target that names one STEP file. The model is
+meshed with OCP and drawn flat shaded with matplotlib's Agg backend: no
+OpenGL, so it runs anywhere the CAD toolchain does. Each view is an
+orthographic projection, with Z up and the front view looking along +Y,
+scaled so the model fills it with a margin. Triangles are painted far to
+near by the depth of their centers, which can be wrong where a large one
+and a small one overlap; the views are for review, not for measuring.
+
+The PNG files hold no time, path or software name, so the same model gives
+the same bytes on the same platform. A change to geometry attaches these
+PNGs to its pull request (AGENTS.md, rule 5).
+
+**ATTRIBUTES**
+
+
+| Name  | Description | Type | Mandatory | Default |
+| :------------- | :------------- | :------------- | :------------- | :------------- |
+| <a id="cad_render-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
+| <a id="cad_render-src"></a>src |  The model: a `cad_part`, or a target that names one STEP file.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
+| <a id="cad_render-size"></a>size |  The width and height of each view, in pixels: 64 to 4096.   | Integer | optional |  `512`  |
+| <a id="cad_render-views"></a>views |  The views to draw, each one of front, back, left, right, top, bottom.   | List of strings | optional |  `["front", "back", "left", "right", "top", "bottom"]`  |
+
+
 <a id="cad_toolchain"></a>
 
 ## cad_toolchain
@@ -63,14 +105,17 @@ It runs with build123d and OCCT on the CAD toolchain.
 <pre>
 load("@rules_brep//brep:defs.bzl", "cad_toolchain")
 
-cad_toolchain(<a href="#cad_toolchain-name">name</a>, <a href="#cad_toolchain-libs">libs</a>, <a href="#cad_toolchain-python_version">python_version</a>, <a href="#cad_toolchain-runner">runner</a>)
+cad_toolchain(<a href="#cad_toolchain-name">name</a>, <a href="#cad_toolchain-libs">libs</a>, <a href="#cad_toolchain-python_version">python_version</a>, <a href="#cad_toolchain-renderer">renderer</a>, <a href="#cad_toolchain-runner">runner</a>)
 </pre>
 
 The CAD toolchain, for `@rules_brep//brep:toolchain_type`.
 
 Its tool, `runner --part PART.py [--params JSON] [--summary OUT]`, imports
 a part script, calls its `build(params)` function, and checks that the
-result is a valid build123d shape. rules_brep registers one on the
+result is a valid build123d shape. Its tool `renderer --step IN.step
+--out VIEW=OUT.png [--out VIEW=OUT.png]... [--size PIXELS]` draws views of a
+model as PNG, with no OpenGL.
+rules_brep registers one on the
 hermetic Python of rules_python, with build123d and OCP locked by hash,
 and the GL and X11 libraries OCP loads, from pinned Debian 11 packages.
 
@@ -80,8 +125,9 @@ and the GL and X11 libraries OCP loads, from pinned Debian 11 packages.
 | Name  | Description | Type | Mandatory | Default |
 | :------------- | :------------- | :------------- | :------------- | :------------- |
 | <a id="cad_toolchain-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
-| <a id="cad_toolchain-libs"></a>libs |  Shared libraries the runner loads from the host otherwise, all in one directory; it goes on the runner's LD_LIBRARY_PATH.   | <a href="https://bazel.build/concepts/labels">Label</a> | optional |  `None`  |
-| <a id="cad_toolchain-python_version"></a>python_version |  The runner's Python version.   | String | required |  |
+| <a id="cad_toolchain-libs"></a>libs |  Shared libraries the runner and the renderer (through OCP) load from the host otherwise, all in one directory; it goes on their LD_LIBRARY_PATH.   | <a href="https://bazel.build/concepts/labels">Label</a> | optional |  `None`  |
+| <a id="cad_toolchain-python_version"></a>python_version |  The Python version of the runner and the renderer.   | String | required |  |
+| <a id="cad_toolchain-renderer"></a>renderer |  The CAD renderer.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
 | <a id="cad_toolchain-runner"></a>runner |  The CAD runner.   | <a href="https://bazel.build/concepts/labels">Label</a> | required |  |
 
 
@@ -153,13 +199,13 @@ load("@rules_brep//brep:defs.bzl", "CadToolchainInfo")
 CadToolchainInfo(<a href="#CadToolchainInfo-python_version">python_version</a>)
 </pre>
 
-What the CAD toolchain offers beyond its `runner` tool.
+What the CAD toolchain offers beyond its `runner` and `renderer` tools.
 
 **FIELDS**
 
 | Name  | Description |
 | :------------- | :------------- |
-| <a id="CadToolchainInfo-python_version"></a>python_version |  string: the runner's Python version, such as "3.12".    |
+| <a id="CadToolchainInfo-python_version"></a>python_version |  string: the Python version of the runner and the renderer, such as "3.12".    |
 
 
 <a id="determinism_test"></a>

@@ -9,6 +9,7 @@ cad_part(
     name = "bracket",
     src = "bracket.py",
     params = {"thickness": "4"},
+    visibility = ["//render:__pkg__"],
 )
 
 determinism_test(

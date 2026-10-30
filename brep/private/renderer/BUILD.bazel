@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: Apache-2.0
+load("@brep_pip//:requirements.bzl", "requirement")
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+# The CAD renderer (issue #10): OCP meshes a STEP model, matplotlib's Agg
+# backend draws it, with no OpenGL. On the hermetic Python 3.12, with
+# wheels locked in requirements_lock.txt.
+_DEPS = [
+    requirement("build123d"),
+    requirement("matplotlib"),
+    requirement("numpy"),
+]
+
+py_library(
+    name = "renderer_lib",
+    srcs = ["renderer.py"],
+    imports = ["."],
+    deps = _DEPS,
+)
+
+py_binary(
+    name = "renderer",
+    srcs = ["renderer.py"],
+    # No __init__.py made up in the runfiles: the renderer is one file.
+    legacy_create_init = False,
+    python_version = "3.12",
+    visibility = ["//brep/toolchains:__pkg__"],
+    deps = _DEPS,
+)
+
+py_test(
+    name = "renderer_test",
+    size = "small",
+    srcs = ["renderer_test.py"],
+    data = ["@brep_gl_libs//:libs"],
+    # The GL and X11 libraries OCP loads; the test loads them first.
+    env = {"BREP_GL_LIBS": "$(rootpaths @brep_gl_libs//:libs)"},
+    legacy_create_init = False,
+    python_version = "3.12",
+    deps = [":renderer_lib"] + _DEPS,
+)

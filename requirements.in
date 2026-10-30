@@ -3,3 +3,6 @@
 # `bazel run //tools:requirements.update`; it writes requirements_lock.txt
 # with every wheel's hash.
 build123d==0.13.0
+# cad_render (issue #10): matplotlib's Agg backend draws the views, with
+# no OpenGL.
+matplotlib==3.10.7
