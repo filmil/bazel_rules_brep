@@ -155,6 +155,9 @@ fails_test(
         ("two_dots", "1.2.3"),
         ("empty", ""),
         ("inf", "1e999"),
+        ("negative_zero", "-0"),
+        ("plus", "+0.001"),
+        ("spaces", " 0.001"),
     ]
 ]
 
@@ -172,6 +175,9 @@ fails_test(
         "two_dots",
         "empty",
         "inf",
+        "negative_zero",
+        "plus",
+        "spaces",
     ]
 ]
 

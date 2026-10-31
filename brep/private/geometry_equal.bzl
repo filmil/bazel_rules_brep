@@ -10,8 +10,10 @@ _CAD = Label("//brep:toolchain_type")
 def _tolerance(ctx, attr):
     """The value of attr, checked to be a finite number, 0 or more."""
     v = getattr(ctx.attr, attr)
+
+    # v goes to the tool as it is: no sign, no spaces, as before.
     x = parse_number(v)
-    if x == None or x < 0:
+    if x == None or v != v.strip() or v[:1] in ["+", "-"]:
         fail("%s: %s = %r: want a finite number, 0 or more, such as \"0.001\"" % (ctx.label, attr, v))
     return v
 

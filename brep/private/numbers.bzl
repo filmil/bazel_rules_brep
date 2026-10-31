@@ -11,10 +11,11 @@ def parse_number(text):
 
     The form is an optional sign, digits with an optional fraction (or a
     fraction alone), and an optional exponent: "3", "-0.5", ".25", "1e-3".
-    "nan", "inf", "1.2.3" and "1e" are not numbers, and neither is one
-    whose digits before the point, with the exponent, reach above 308
-    ("1e308", "1e999"): Starlark's float() would fail on some of these with
-    an error that names no attribute.
+    "nan", "inf", "1.2.3" and "1e" are not numbers. Neither is one of
+    1e308 or more in size ("1e308", "-1e999"), nor one whose exponent has
+    more than 4 digits: Starlark's float() fails on some of these with an
+    error that names no attribute. (1e308 itself would fit a float, which
+    goes up to about 1.8e308; refusing it keeps the check simple.)
 
     Args:
       text: the string to parse.
@@ -36,7 +37,7 @@ def parse_number(text):
         if exponent[:1] in ["+", "-"]:
             sign = -1 if exponent[0] == "-" else 1
             exponent = exponent[1:]
-        if not _digits(exponent) or len(exponent) > 4:
+        if not _digits(exponent) or len(exponent.lstrip("0")) > 4:
             return None
         scale = sign * int(exponent)
     whole, dot, frac = mantissa.partition(".")
@@ -46,8 +47,15 @@ def parse_number(text):
     elif not _digits(whole):
         return None
 
-    # The number is below 10 to the power of its digits before the point
-    # plus its exponent; at most 308 of them keep float() from overflowing.
-    if len(whole.lstrip("0")) + scale > 308:
+    # The number's size is below 10 to the power `order`: its digits before
+    # the point, or less the zeros that open its fraction, plus the
+    # exponent. Zero is zero whatever its exponent.
+    if (whole + frac).strip("0") == "":
+        return float(text.strip())
+    if whole.lstrip("0") != "":
+        order = len(whole.lstrip("0")) + scale
+    else:
+        order = len(frac.lstrip("0")) - len(frac) + scale
+    if order > 308:
         return None
     return float(text.strip())
