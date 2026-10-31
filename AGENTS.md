@@ -38,7 +38,8 @@ the change.
    design change.
 7. Stop and ask the operator before you:
    * delete a test, or make a tolerance or a limit larger;
-   * change a toolchain version or a library version;
+   * change a toolchain version or a library version (the pull request
+     also updates its entry under Licenses in `README.md`);
    * run a release or publish workflow, or set a secret.
 8. When a test fails and the cause is not clear after three attempts, stop.
    Write the failure and your hypotheses in the pull request.

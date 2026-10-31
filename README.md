@@ -66,6 +66,42 @@ geometry_equal_test(
 )
 ```
 
+A part checked against limits (volume, size, thinnest wall), an assembly
+of parts with no two overlapping, and a board in its enclosure:
+
+```starlark
+load("@hdlf_rules_brep//brep:defs.bzl", "cad_assembly", "cad_check_test", "interference_test", "pcb_fit_test")
+
+cad_check_test(
+    name = "bracket_check_test",
+    part = ":bracket",
+    max_size = ["40", "30", "35"],
+    max_volume = "5000",
+    min_wall = "1.5",
+)
+
+cad_assembly(
+    name = "stand",
+    parts = {
+        ":base": '{"pos": [0, 0, 0]}',
+        ":bracket": '[{"pos": [10, 0, 5]}, {"pos": [40, 0, 5], "rot": [0, 0, 180]}]',
+    },
+)
+
+interference_test(
+    name = "stand_interference_test",
+    assembly = ":stand",
+)
+
+pcb_fit_test(
+    name = "board_fit_test",
+    board = "@my_board//:step",  # kicad_step of hdlf_rules_kicad, or any STEP
+    enclosure = ":enclosure",  # a cad_part
+    board_placement = '{"pos": [0, 0, 4]}',
+    min_clearance_mm = "0.5",
+)
+```
+
 A CadQuery script builds the same way, with `library = "cadquery"`:
 
 ```starlark
@@ -82,8 +118,9 @@ a locked set of wheels of its own (`requirements_cadquery_lock.txt`):
 build that has a CadQuery part.
 
 The CAD runners are Python (build123d or CadQuery, and OCCT) on the
-hermetic interpreter of rules_python; hdlf_rules_brep registers them. Add this to `.bazelrc`, or
-rules_python starts it through the host's `python3`:
+hermetic interpreter of rules_python; hdlf_rules_brep registers them.
+Add this to `.bazelrc`, or rules_python starts it through the host's
+`python3`:
 
 ```
 common --@rules_python//python/config_settings:bootstrap_impl=script
@@ -94,7 +131,8 @@ and, so that the flag's label resolves, to `MODULE.bazel`:
 ```starlark
 bazel_dep(name = "rules_python", version = "2.4.6")
 ```
- Under Bazel 8, rules_python asks
+
+Under Bazel 8, rules_python asks
 for a C++ toolchain even though nothing is compiled, so a build that finds
 none on the host needs one, such as hermetic_cc_toolchain (see
 `integration/MODULE.bazel`). Bazel 9 does not ask.
@@ -130,11 +168,12 @@ See the overall description at the [project page][pp].
 ## Licenses
 
 This repository is under the Apache License 2.0 (`LICENSE`).
-Prebuilt tools and libraries that the build downloads are listed here, with
-their versions, sources and licenses, as they are added.
+The prebuilt tools and libraries that the build downloads, with their
+versions, sources and licenses:
 
-* Python 3.12, the hermetic interpreter of rules_python
-  (python-build-standalone): PSF License.
+* Python 3.12, the hermetic interpreter of rules_python 2.4.6
+  (python-build-standalone, https://github.com/astral-sh/python-build-standalone):
+  PSF License.
 * build123d 0.13.0 (Apache 2.0) and OCP, OCCT's Python binding, as
   cadquery-ocp-novtk 8.0.1.1.0 wheels (LGPL 2.1 with the OCCT exception),
   with their dependencies, pinned by hash in `requirements_lock.txt`.
@@ -146,3 +185,6 @@ their versions, sources and licenses, as they are added.
   by sha256 (`brep/private/gl_libs.bzl`): libglvnd (MIT-style), libX11,
   libxcb, libXau, libXdmcp and expat (MIT), libbsd and libmd (BSD and
   public domain). Each package's `copyright` file has the details.
+* The Go SDK (go1.26.7 with rules_go 0.64.2, https://go.dev):
+  BSD-3-Clause. rules_go downloads it to build this module's checkers
+  from source.
