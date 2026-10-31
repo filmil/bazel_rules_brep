@@ -1,43 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """geometry_equal_test: two shapes are the same within tolerances (issue #11)."""
 
+load(":numbers.bzl", "parse_number")
 load(":run_tool.bzl", "HELPERS_TOOLCHAIN_TYPE", "RUN_TOOL_TOOLCHAINS", "run_tool")
 load(":step_file.bzl", "step_file")
 
 _CAD = Label("//brep:toolchain_type")
 
-_DIGITS = "0123456789"
-
-def _digits(s):
-    return s != "" and not [c for c in s.elems() if c not in _DIGITS]
-
-def _is_number(v):
-    """Whether v is a decimal number, 0 or more, below 1e300: 1, 0.5, .5, 1e-3, 2.5E+2."""
-    mantissa, exponent, scale = v, None, 0
-    for e in ["e", "E"]:
-        if e in v:
-            mantissa, exponent = v.split(e, 1)
-    if exponent != None:
-        sign = 1
-        if exponent[:1] in ["+", "-"]:
-            sign = -1 if exponent[0] == "-" else 1
-            exponent = exponent[1:]
-        if not _digits(exponent) or len(exponent) > 4:
-            return False
-        scale = sign * int(exponent)
-    whole, dot, frac = mantissa.partition(".")
-    if dot:
-        ok = (_digits(whole) or whole == "") and (_digits(frac) or frac == "") and (whole + frac) != ""
-    else:
-        ok = _digits(whole)
-
-    # Starlark's float() fails on a number that is too large, so check first.
-    return ok and len(whole.lstrip("0")) + scale < 300
-
 def _tolerance(ctx, attr):
     """The value of attr, checked to be a finite number, 0 or more."""
     v = getattr(ctx.attr, attr)
-    if not _is_number(v):
+    x = parse_number(v)
+    if x == None or x < 0:
         fail("%s: %s = %r: want a finite number, 0 or more, such as \"0.001\"" % (ctx.label, attr, v))
     return v
 
