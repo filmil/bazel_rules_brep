@@ -75,11 +75,13 @@ load("@hdlf_rules_brep//brep:defs.bzl", "cad_assembly", "cad_check_test", "inter
 cad_check_test(
     name = "bracket_check_test",
     part = ":bracket",
-    max_size = ["40", "30", "35"],
-    max_volume = "5000",
-    min_wall = "1.5",
+    max_size = ["40", "30", "35"],  # mm, X Y Z
+    max_volume = "5000",  # mm^3
+    min_wall = "1.5",  # mm
 )
 
+# :base and :enclosure are cad_parts, as :bracket. pos is in mm; rot is
+# in degrees, about X, then the turned Y, then the turned Z.
 cad_assembly(
     name = "stand",
     parts = {
