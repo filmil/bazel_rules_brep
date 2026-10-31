@@ -1,15 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Public API of rules_brep.
+"""Public API of hdlf_rules_brep.
 
 Load every rule from this file:
 
 ```starlark
-load("@rules_brep//brep:defs.bzl", "determinism_test", "swap_test", "tool_toolchain")
+load("@hdlf_rules_brep//brep:defs.bzl", "cad_assembly", "cad_part", "pcb_fit_test")
 ```
 
-The rules arrive in milestone M4 (see the issues of
-https://github.com/filmil/bazel_rules_brep). This file is the only public
-entry point; everything under `//brep/private` may change without notice.
+This file is the only public entry point; everything under
+`//brep/private` may change without notice.
 """
 
 load("//brep/private:assembly.bzl", _CadAssemblyInfo = "CadAssemblyInfo", _cad_assembly = "cad_assembly")

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# The e2e bracket's views, rendered by a module that depends on rules_brep:
+# The e2e bracket's views, rendered by a module that depends on hdlf_rules_brep:
 # the renderer, matplotlib from the locked wheels, and OCP with the pinned
 # GL libraries, across the module boundary; the same bytes in two
 # configurations (issue #10).
-load("@rules_brep//brep:defs.bzl", "cad_render", "determinism_test")
+load("@hdlf_rules_brep//brep:defs.bzl", "cad_render", "determinism_test")
 
 cad_render(
     name = "bracket_views",

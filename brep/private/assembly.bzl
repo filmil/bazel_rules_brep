@@ -50,7 +50,7 @@ def _placements(ctx, label, text):
 def _cad_assembly_impl(ctx):
     epoch = ctx.attr._epoch[BuildSettingInfo].value
     if epoch < 0:
-        fail("--@rules_brep//brep:source_date_epoch=%d: want 0 or more" % epoch)
+        fail("--@hdlf_rules_brep//brep:source_date_epoch=%d: want 0 or more" % epoch)
     if not ctx.attr.parts:
         fail("%s: parts is empty" % ctx.label)
     children = []
@@ -113,7 +113,7 @@ when placed once (also from a list of one), and `<part>_1`, `<part>_2`,
 ... when placed more than once.
 
 The header is normalized as `cad_part`'s: the assembly's name, and the
-time `--@rules_brep//brep:source_date_epoch`.
+time `--@hdlf_rules_brep//brep:source_date_epoch`.
 """,
     attrs = {
         "parts": attr.label_keyed_string_dict(

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# A part built by a module that depends on rules_brep: the hermetic Python,
+# A part built by a module that depends on hdlf_rules_brep: the hermetic Python,
 # the locked wheels, the pinned GL libraries and the runner, across the
 # module boundary; the same bytes in two configurations (issue #8).
-load("@rules_brep//brep:defs.bzl", "cad_assembly", "cad_part", "determinism_test", "interference_test")
+load("@hdlf_rules_brep//brep:defs.bzl", "cad_assembly", "cad_part", "determinism_test", "interference_test")
 
 cad_part(
     name = "bracket",

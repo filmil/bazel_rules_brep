@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""An L-bracket, as a user of rules_brep would write a part."""
+"""An L-bracket, as a user of hdlf_rules_brep would write a part."""
 
 from build123d import Box, Pos
 
