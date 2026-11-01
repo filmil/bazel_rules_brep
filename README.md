@@ -22,7 +22,7 @@ Only Linux x86_64 hosts are supported.
 ## Using it
 
 ```starlark
-bazel_dep(name = "hdlf_rules_brep", version = "0.1.0")
+bazel_dep(name = "hdlf_rules_brep", version = "0.0.1")
 ```
 
 `.bazelrc`, while the module is only in the filmil registry:
