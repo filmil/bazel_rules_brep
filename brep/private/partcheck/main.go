@@ -3,8 +3,11 @@
 // Command partcheck is cad_check_test's checker (issue #12).
 //
 // It reads the measurer's output ("key value..." per line: volume, min,
-// max, and min_wall when it was measured) and checks the limits it is
-// given. Every limit that does not hold is listed, with the value found.
+// max, valid and closed, and min_wall when it was measured) and checks the
+// limits it is given. Every limit that does not hold is listed, with the
+// value found. The shape must always be valid, closed solids (the limit
+// named "solid"); a part that cad_part did not make, such as a STEP file
+// with an open shell, may not be.
 //
 // Environment: CHECK_MEASURE (the measurements' runfiles path), and the
 // limits, each empty when not checked: CHECK_MIN_VOLUME, CHECK_MAX_VOLUME
@@ -67,13 +70,28 @@ func one(m map[string][]float64, key string) (float64, error) {
 	return v[0], nil
 }
 
-// Failure is a limit that does not hold: its name (min_volume,
+// Failure is a limit that does not hold: its name (solid, min_volume,
 // max_volume, max_size, min_wall) and a description.
 type Failure struct{ Limit, Text string }
 
-// Check returns each limit that does not hold.
+// Check returns each limit that does not hold. The shape's validity and
+// closure are always checked.
 func Check(m map[string][]float64, l Limits) ([]Failure, error) {
 	var bad []Failure
+	valid, err := one(m, "valid")
+	if err != nil {
+		return nil, err
+	}
+	closed, err := one(m, "closed")
+	if err != nil {
+		return nil, err
+	}
+	if valid != 1 {
+		bad = append(bad, Failure{"solid", "the shape is not valid: OCCT's BRepCheck_Analyzer finds faults in it"})
+	}
+	if closed != 1 {
+		bad = append(bad, Failure{"solid", "the shape is not closed solids: it has no solid, an open shell, or a face outside any solid"})
+	}
 	if l.MinVolume != nil || l.MaxVolume != nil {
 		v, err := one(m, "volume")
 		if err != nil {
@@ -102,12 +120,16 @@ func Check(m map[string][]float64, l Limits) ([]Failure, error) {
 		}
 	}
 	if l.MinWall != nil {
-		w, err := one(m, "min_wall")
-		if err != nil {
-			return nil, err
+		mw, ok := m["min_wall"]
+		if !ok || (len(mw) != 1 && len(mw) != 4) {
+			return nil, fmt.Errorf("the measurements have no min_wall")
 		}
-		if w < *l.MinWall {
-			bad = append(bad, Failure{"min_wall", fmt.Sprintf("the thinnest wall, %.6f mm, is below the minimum %g", w, *l.MinWall)})
+		if w := mw[0]; w < *l.MinWall {
+			where := ""
+			if len(mw) == 4 {
+				where = fmt.Sprintf(", at (%.3f, %.3f, %.3f) mm on the face its ray starts from", mw[1], mw[2], mw[3])
+			}
+			bad = append(bad, Failure{"min_wall", fmt.Sprintf("the thinnest wall, %.6f mm%s, is below the minimum %g", w, where, *l.MinWall)})
 		}
 	}
 	return bad, nil

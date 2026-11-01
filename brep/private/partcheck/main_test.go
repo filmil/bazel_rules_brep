@@ -18,7 +18,9 @@ solids 1
 faces 6
 edges 12
 vertices 8
-min_wall 10.000000
+valid 1
+closed 1
+min_wall 10.000000 1.000000 -2.500000 15.000000
 `
 
 func f(v float64) *float64 { return &v }
@@ -42,13 +44,13 @@ func TestCheck(t *testing.T) {
 		texts = append(texts, b.Text)
 	}
 	all := strings.Join(texts, "\n")
-	for _, want := range []string{"below the minimum 6001", "above the maximum 5999", "size in X 10.000000", "size in Z 30.000000", "thinnest wall, 10.000000 mm"} {
+	for _, want := range []string{"below the minimum 6001", "above the maximum 5999", "size in X 10.000000", "size in Z 30.000000", "thinnest wall, 10.000000 mm, at (1.000, -2.500, 15.000) mm"} {
 		if !strings.Contains(all, want) {
 			t.Errorf("no %q in %s", want, all)
 		}
 	}
 	// No min_wall measured, but asked for: an error, not a pass.
-	m2, _ := Parse(strings.NewReader(strings.Replace(measured, "min_wall 10.000000\n", "", 1)))
+	m2, _ := Parse(strings.NewReader(strings.Replace(measured, "min_wall 10.000000 1.000000 -2.500000 15.000000\n", "", 1)))
 	if _, err := Check(m2, Limits{MinWall: f(1)}); err == nil {
 		t.Error("a missing min_wall must be an error")
 	}
@@ -57,9 +59,38 @@ func TestCheck(t *testing.T) {
 			t.Errorf("Parse(%q): want an error", bad)
 		}
 	}
-	inverted, _ := Parse(strings.NewReader("min 5 0 0\nmax 1 1 1\n"))
+	inverted, _ := Parse(strings.NewReader("valid 1\nclosed 1\nmin 5 0 0\nmax 1 1 1\n"))
 	if _, err := Check(inverted, Limits{MaxSize: []float64{10, 10, 10}}); err == nil {
 		t.Error("a min above the max must be an error")
+	}
+}
+
+// The shape must be valid, closed solids, whatever limits are set.
+func TestSolid(t *testing.T) {
+	for _, c := range []struct {
+		lines, want string
+	}{
+		{"valid 0\nclosed 1\n", "not valid"},
+		{"valid 1\nclosed 0\n", "not closed solids"},
+	} {
+		m, err := Parse(strings.NewReader(c.lines))
+		if err != nil {
+			t.Fatal(err)
+		}
+		bad, err := Check(m, Limits{})
+		if err != nil || len(bad) != 1 || bad[0].Limit != "solid" || !strings.Contains(bad[0].Text, c.want) {
+			t.Errorf("%q: %v %v, want one solid failure, %q", c.lines, bad, err, c.want)
+		}
+	}
+	// Measured without --solid: an error, not a pass.
+	m, _ := Parse(strings.NewReader("volume 1\n"))
+	if _, err := Check(m, Limits{}); err == nil {
+		t.Error("measurements with no valid and closed must be an error")
+	}
+	// A min_wall of one value (no point) still checks.
+	m, _ = Parse(strings.NewReader("valid 1\nclosed 1\nmin_wall 1\n"))
+	if bad, err := Check(m, Limits{MinWall: f(2)}); err != nil || len(bad) != 1 || strings.Contains(bad[0].Text, " at (") {
+		t.Errorf("min_wall with no point: %v %v", bad, err)
 	}
 }
 

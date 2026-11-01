@@ -81,13 +81,21 @@ The part is measured with OCP on the CAD toolchain (the measurer of
 checked only when set; the test fails listing every limit that does not
 hold, with the value found. A value at a limit holds.
 
+The part must always be valid, closed solids (the limit `solid`): OCCT's
+BRepCheck_Analyzer finds no fault, it has at least one solid, every
+shell is closed, and every face belongs to a solid. A `cad_part` is
+checked for this when it is built; a STEP file from elsewhere, such as
+one with an open shell or loose faces, fails here.
+
 * `min_volume`, `max_volume`: mm^3.
 * `max_size`: the largest bounding box, `[X, Y, Z]` in mm.
 * `min_wall`: the thinnest wall, in mm. It is sampled: from a
   `wall_grid` x `wall_grid` grid of points on each face, a ray goes
   inward, and the shortest way through the solid counts. A wall thinner
   than the grid's spacing in a small spot can be missed; raise
-  `wall_grid` to look closer. Measured only when `min_wall` is set.
+  `wall_grid` to look closer. Measured only when `min_wall` is set. When
+  it fails, the message names where: the point on the face that the
+  thinnest wall's ray starts from.
 
 Raising a limit so that a part passes needs a person (AGENTS.md rule 7).
 `expect = "fail"` is for a known-bad part (spec T3): the test then passes
@@ -101,7 +109,7 @@ fails for the reason it was made for.
 | :------------- | :------------- | :------------- | :------------- | :------------- |
 | <a id="cad_check_test-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
 | <a id="cad_check_test-expect"></a>expect |  "pass", or "fail" for a known-bad part.   | String | optional |  `"pass"`  |
-| <a id="cad_check_test-expect_failing"></a>expect_failing |  With expect = "fail": the limits that must fail, and only they (min_volume, max_volume, max_size, min_wall).   | List of strings | optional |  `[]`  |
+| <a id="cad_check_test-expect_failing"></a>expect_failing |  With expect = "fail": the limits that must fail, and only they (solid, min_volume, max_volume, max_size, min_wall).   | List of strings | optional |  `[]`  |
 | <a id="cad_check_test-max_size"></a>max_size |  The largest bounding box: X, Y, Z in mm.   | List of strings | optional |  `[]`  |
 | <a id="cad_check_test-max_volume"></a>max_volume |  The most volume, mm^3.   | String | optional |  `""`  |
 | <a id="cad_check_test-min_volume"></a>min_volume |  The least volume, mm^3.   | String | optional |  `""`  |

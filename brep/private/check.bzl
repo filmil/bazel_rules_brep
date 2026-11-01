@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""cad_check_test: a part's volume, size and thinnest wall within limits (issue #12)."""
+"""cad_check_test: a part is valid, closed solids, with its volume, size and thinnest wall within limits (issues #12, #17)."""
 
 load(":numbers.bzl", "parse_number")
 load(":run_tool.bzl", "HELPERS_TOOLCHAIN_TYPE", "RUN_TOOL_TOOLCHAINS", "run_tool")
@@ -35,7 +35,7 @@ def _cad_check_test_impl(ctx):
         fail("%s: no limit given; set min_volume, max_volume, max_size or min_wall" % ctx.label)
     if min_volume and max_volume and float(min_volume) > float(max_volume):
         fail("%s: min_volume %s is above max_volume %s" % (ctx.label, min_volume, max_volume))
-    names = ["min_volume", "max_volume", "max_size", "min_wall"]
+    names = ["solid", "min_volume", "max_volume", "max_size", "min_wall"]
     for n in a.expect_failing:
         if n not in names:
             fail("%s: expect_failing has %r; the limits are %s" % (ctx.label, n, names))
@@ -46,7 +46,7 @@ def _cad_check_test_impl(ctx):
 
     step = step_file(ctx, a.part, "part")
     measured = ctx.actions.declare_file(ctx.label.name + ".measurements.txt")
-    args = ["--step", step.path, "--out", measured.path]
+    args = ["--step", step.path, "--out", measured.path, "--solid"]
     if min_wall:
         args += ["--min-wall", str(a.wall_grid)]
     run_tool(
@@ -98,13 +98,21 @@ The part is measured with OCP on the CAD toolchain (the measurer of
 checked only when set; the test fails listing every limit that does not
 hold, with the value found. A value at a limit holds.
 
+The part must always be valid, closed solids (the limit `solid`): OCCT's
+BRepCheck_Analyzer finds no fault, it has at least one solid, every
+shell is closed, and every face belongs to a solid. A `cad_part` is
+checked for this when it is built; a STEP file from elsewhere, such as
+one with an open shell or loose faces, fails here.
+
 * `min_volume`, `max_volume`: mm^3.
 * `max_size`: the largest bounding box, `[X, Y, Z]` in mm.
 * `min_wall`: the thinnest wall, in mm. It is sampled: from a
   `wall_grid` x `wall_grid` grid of points on each face, a ray goes
   inward, and the shortest way through the solid counts. A wall thinner
   than the grid's spacing in a small spot can be missed; raise
-  `wall_grid` to look closer. Measured only when `min_wall` is set.
+  `wall_grid` to look closer. Measured only when `min_wall` is set. When
+  it fails, the message names where: the point on the face that the
+  thinnest wall's ray starts from.
 
 Raising a limit so that a part passes needs a person (AGENTS.md rule 7).
 `expect = "fail"` is for a known-bad part (spec T3): the test then passes
@@ -127,7 +135,7 @@ fails for the reason it was made for.
         ),
         "expect_failing": attr.string_list(
             doc = "With expect = \"fail\": the limits that must fail, and only they " +
-                  "(min_volume, max_volume, max_size, min_wall).",
+                  "(solid, min_volume, max_volume, max_size, min_wall).",
         ),
         "expect": attr.string(
             doc = "\"pass\", or \"fail\" for a known-bad part.",
