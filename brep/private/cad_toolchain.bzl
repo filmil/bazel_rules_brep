@@ -48,10 +48,12 @@ Its tool `runner` imports a part script, calls its `build(params)`
 function, and checks that the result is a valid build123d shape. A
 replacement runner must accept what `cad_part` passes: `--part PART.py
 --params JSON --name NAME --step OUT.step --stl OUT.stl --stl-tolerance MM
---stl-angular-tolerance RAD [--path DIR]...`. The assembly rules also call
-it with `--assemble SPEC`, `--interference SPEC` or `--fit SPEC`, and
-`--report OUT`. The argument parser in `brep/private/runner/runner.py` is
-the full list. Its tool `renderer --step IN.step
+--stl-angular-tolerance RAD [--path DIR]...`. The other rules call it in
+modes of their own, without `--part`: `cad_assembly` with `--assemble
+SPEC.json --step OUT.step`; `interference_test` with `--interference
+SPEC.json --report OUT`; `pcb_fit_test` with `--fit SPEC.json --report
+OUT`. The argument parser in `brep/private/runner/runner.py` is the full
+list. Its tool `renderer --step IN.step
 --out VIEW=OUT.png [--out VIEW=OUT.png]... [--size PIXELS]` draws views of a
 model as PNG, with no OpenGL. Its tool `measurer --step IN.step --out OUT.txt`
 writes a model's volume, area, center of mass, bounding box and counts of
