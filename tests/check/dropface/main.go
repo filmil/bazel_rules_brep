@@ -6,7 +6,8 @@
 //
 //	dropface OUT.step IN...
 //
-// Of the IN files (a cad_part's outputs), it reads the one .step file.
+// Of the IN files (a cad_part's outputs), it reads the one .step or .stp
+// file. The STEP text is the one build123d writes: CLOSED_SHELL(”,(#a,#b,...)).
 package main
 
 import (
@@ -37,8 +38,10 @@ func Drop(step string) (string, error) {
 func Step(paths []string) (string, error) {
 	var steps []string
 	for _, p := range paths {
+		// $(execpaths) gives one argument of paths split by spaces;
+		// Bazel's own paths have no spaces.
 		for _, f := range strings.Fields(p) {
-			if strings.HasSuffix(f, ".step") {
+			if l := strings.ToLower(f); strings.HasSuffix(l, ".step") || strings.HasSuffix(l, ".stp") {
 				steps = append(steps, f)
 			}
 		}

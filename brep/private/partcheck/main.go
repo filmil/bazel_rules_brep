@@ -86,11 +86,18 @@ func Check(m map[string][]float64, l Limits) ([]Failure, error) {
 	if err != nil {
 		return nil, err
 	}
+	if (valid != 0 && valid != 1) || (closed != 0 && closed != 1) {
+		return nil, fmt.Errorf("valid %v and closed %v: want 0 or 1", valid, closed)
+	}
+	var why []string
 	if valid != 1 {
-		bad = append(bad, Failure{"solid", "the shape is not valid: OCCT's BRepCheck_Analyzer finds faults in it"})
+		why = append(why, "not valid (OCCT's BRepCheck_Analyzer finds faults in it)")
 	}
 	if closed != 1 {
-		bad = append(bad, Failure{"solid", "the shape is not closed solids: it has no solid, an open shell, or a face outside any solid"})
+		why = append(why, "not closed solids (it has no solid, an open shell, or a face, edge or vertex outside any solid)")
+	}
+	if len(why) > 0 {
+		bad = append(bad, Failure{"solid", "the shape is " + strings.Join(why, ", and ")})
 	}
 	if l.MinVolume != nil || l.MaxVolume != nil {
 		v, err := one(m, "volume")
@@ -121,8 +128,11 @@ func Check(m map[string][]float64, l Limits) ([]Failure, error) {
 	}
 	if l.MinWall != nil {
 		mw, ok := m["min_wall"]
-		if !ok || (len(mw) != 1 && len(mw) != 4) {
+		if !ok {
 			return nil, fmt.Errorf("the measurements have no min_wall")
+		}
+		if len(mw) != 1 && len(mw) != 4 {
+			return nil, fmt.Errorf("min_wall has %d values; want the wall, or the wall and its point", len(mw))
 		}
 		if w := mw[0]; w < *l.MinWall {
 			where := ""

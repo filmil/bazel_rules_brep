@@ -72,6 +72,7 @@ func TestSolid(t *testing.T) {
 	}{
 		{"valid 0\nclosed 1\n", "not valid"},
 		{"valid 1\nclosed 0\n", "not closed solids"},
+		{"valid 0\nclosed 0\n", "not valid (OCCT's BRepCheck_Analyzer finds faults in it), and not closed"},
 	} {
 		m, err := Parse(strings.NewReader(c.lines))
 		if err != nil {
@@ -86,6 +87,16 @@ func TestSolid(t *testing.T) {
 	m, _ := Parse(strings.NewReader("volume 1\n"))
 	if _, err := Check(m, Limits{}); err == nil {
 		t.Error("measurements with no valid and closed must be an error")
+	}
+	// valid and closed are 0 or 1; anything else is a bad file.
+	m, _ = Parse(strings.NewReader("valid 0.5\nclosed 1\n"))
+	if _, err := Check(m, Limits{}); err == nil {
+		t.Error("valid 0.5 must be an error")
+	}
+	// A min_wall of 2 values is a bad file, not a missing one.
+	m, _ = Parse(strings.NewReader("valid 1\nclosed 1\nmin_wall 1 2\n"))
+	if _, err := Check(m, Limits{MinWall: f(2)}); err == nil || !strings.Contains(err.Error(), "has 2 values") {
+		t.Errorf("min_wall of 2 values: %v", err)
 	}
 	// A min_wall of one value (no point) still checks.
 	m, _ = Parse(strings.NewReader("valid 1\nclosed 1\nmin_wall 1\n"))

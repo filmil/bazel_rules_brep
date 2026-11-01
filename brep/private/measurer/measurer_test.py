@@ -150,7 +150,8 @@ class MinWallTest(unittest.TestCase):
 
     def test_where(self):
         # The thinnest wall is named by the point on the face where its ray
-        # starts: on a side of the 0.8 mm rib, which stands from z 5 to 15.
+        # starts: on a side of the 0.8 mm rib. The base spans z -2.5 to
+        # 2.5 and the rib z 2.5 to 12.5 (build123d's boxes are centered).
         from build123d import Box, Pos
 
         shape = Box(30, 30, 5) + Pos(0, 0, 7.5) * Box(30, 0.8, 10)
@@ -221,6 +222,25 @@ class SolidTest(unittest.TestCase):
 
         faces = Box(10, 10, 10).faces().sort_by()  # bottom first
         self.assertEqual("0", self.checks(Shell(faces[:-1]))[1])
+
+    def test_solid_with_open_shell(self):
+        # A solid made of a box's shell with its top face taken away: one
+        # solid, whose shell is open. The shell check finds it.
+        from build123d import Box, Shell, Solid
+        from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeSolid
+        from OCP.TopoDS import TopoDS
+
+        faces = Box(10, 10, 10).faces().sort_by()
+        maker = BRepBuilderAPI_MakeSolid(TopoDS.Shell(Shell(faces[:-1]).wrapped))
+        solid = Solid(maker.Solid())
+        self.assertEqual("0", self.checks(solid)[1])
+
+    def test_loose_edge(self):
+        # A good solid, and an edge beside it.
+        from build123d import Box, Compound, Edge
+
+        shape = Compound([Box(10, 10, 10), Edge.make_line((30, 0, 0), (40, 0, 0))])
+        self.assertEqual("0", self.checks(shape)[1])
 
     def test_lone_face(self):
         from build123d import Rectangle

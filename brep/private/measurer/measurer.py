@@ -22,9 +22,10 @@ reads it, and so does cad_check_test (issue #12).
 With --solid it adds two lines, "valid 1" or "valid 0", and "closed 1" or
 "closed 0". valid is OCCT's BRepCheck_Analyzer: the shape has no faults.
 closed means the shape is solids, each bounded by closed shells: it has
-at least one solid, every shell is closed (each edge between two faces),
-and every face belongs to a solid. A STEP file with an open shell, or
-loose faces, is not closed.
+at least one solid, every shell is closed (OCCT's BRep_Tool.IsClosed:
+each edge between two faces), and every face, edge and vertex belongs to
+a solid. A STEP file with an open shell, or loose faces, edges or
+vertices, is not closed.
 
 With --min-wall GRID it adds a last line, "min_wall T X Y Z": the
 thinnest wall found, T in mm, and where: X Y Z is the point on the face
@@ -118,7 +119,7 @@ def solid_checks(shape):
     from OCP.BRep import BRep_Tool
     from OCP.BRepCheck import BRepCheck_Analyzer
     from OCP.collections import IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher
-    from OCP.TopAbs import TopAbs_FACE, TopAbs_SHELL, TopAbs_SOLID
+    from OCP.TopAbs import TopAbs_EDGE, TopAbs_FACE, TopAbs_SHELL, TopAbs_SOLID, TopAbs_VERTEX
     from OCP.TopExp import TopExp, TopExp_Explorer
 
     valid = BRepCheck_Analyzer(shape).IsValid()
@@ -127,14 +128,16 @@ def solid_checks(shape):
     while closed and shells.More():
         closed = BRep_Tool.IsClosed_s(shells.Current())
         shells.Next()
-    if closed:
-        # Every face of the shape is a face of one of its solids.
+    # Every face, edge and vertex of the shape is one of its solids'.
+    for kind in (TopAbs_FACE, TopAbs_EDGE, TopAbs_VERTEX):
+        if not closed:
+            break
         in_solids = IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher()
         solids = TopExp_Explorer(shape, TopAbs_SOLID)
         while solids.More():
-            TopExp.MapShapes_s(solids.Current(), TopAbs_FACE, in_solids)
+            TopExp.MapShapes_s(solids.Current(), kind, in_solids)
             solids.Next()
-        closed = in_solids.Extent() == count(shape, TopAbs_FACE)
+        closed = in_solids.Extent() == count(shape, kind)
     return [("valid", [1 if valid else 0]), ("closed", [1 if closed else 0])]
 
 
