@@ -83,9 +83,13 @@ hold, with the value found. A value at a limit holds.
 
 The part must always be valid, closed solids (the limit `solid`): OCCT's
 BRepCheck_Analyzer finds no fault, it has at least one solid, every
-shell is closed, and every face belongs to a solid. A `cad_part` is
-checked for this when it is built; a STEP file from elsewhere, such as
-one with an open shell or loose faces, fails here.
+shell is closed, and every face belongs to a solid. When a `cad_part` is
+built, its runner checks less: a build123d part must be valid and have a
+volume; a CadQuery part must also have a solid and hold nothing outside
+its solids (no loose shells, faces, wires, edges or vertices). Neither
+runner checks that every shell is closed. So this test is the full
+`solid` check for any part, and the only check for a STEP file from
+elsewhere, such as one with an open shell or loose faces.
 
 * `min_volume`, `max_volume`: mm^3.
 * `max_size`: the largest bounding box, `[X, Y, Z]` in mm.
@@ -222,9 +226,16 @@ cad_toolchain(<a href="#cad_toolchain-name">name</a>, <a href="#cad_toolchain-li
 
 The CAD toolchain, for `@hdlf_rules_brep//brep:toolchain_type`.
 
-Its tool, `runner --part PART.py [--params JSON] [--summary OUT]`, imports
-a part script, calls its `build(params)` function, and checks that the
-result is a valid build123d shape. Its tool `renderer --step IN.step
+Its tool `runner` imports a part script, calls its `build(params)`
+function, and checks that the result is a valid build123d shape. A
+replacement runner must accept what `cad_part` passes: `--part PART.py
+--params JSON --name NAME --step OUT.step --stl OUT.stl --stl-tolerance MM
+--stl-angular-tolerance RAD [--path DIR]...`. The other rules call it in
+modes of their own, without `--part`: `cad_assembly` with `--assemble
+SPEC.json --step OUT.step`; `interference_test` with `--interference
+SPEC.json --report OUT`; `pcb_fit_test` with `--fit SPEC.json --report
+OUT`. The argument parser in `brep/private/runner/runner.py` is the full
+list. Its tool `renderer --step IN.step
 --out VIEW=OUT.png [--out VIEW=OUT.png]... [--size PIXELS]` draws views of a
 model as PNG, with no OpenGL. Its tool `measurer --step IN.step --out OUT.txt`
 writes a model's volume, area, center of mass, bounding box and counts of
@@ -408,18 +419,23 @@ tool_toolchain(<a href="#tool_toolchain-name">name</a>, <a href="#tool_toolchain
 
 A toolchain that offers tools by name, for `run_tool`.
 
-Example, a toolchain for another build of the CAD runner (the toolchain
-type arrives with this module's toolchain issue):
+Example, a toolchain for another build of the CAD tools. The CAD rules
+look their tools up by these names, `runner`, `measurer` and `renderer`,
+and an action fails if its tool is missing:
 
 ```starlark
 tool_toolchain(
-    name = "my_cad_runner_impl",
-    tools = {"//third_party/cad_runner:cad_runner": "cad_runner"},
+    name = "my_cad_impl",
+    tools = {
+        "//third_party/cad:runner": "runner",
+        "//third_party/cad:measurer": "measurer",
+        "//third_party/cad:renderer": "renderer",
+    },
 )
 
 toolchain(
-    name = "my_cad_runner",
-    toolchain = ":my_cad_runner_impl",
+    name = "my_cad",
+    toolchain = ":my_cad_impl",
     toolchain_type = "@hdlf_rules_brep//brep:toolchain_type",
 )
 ```
@@ -558,7 +574,7 @@ Example:
 ```starlark
 swap_test(
     name = "swap_test",
-    targets = [":gerbers", ":bom"],
+    targets = [":bracket"],  # a cad_part
 )
 ```
 

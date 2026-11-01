@@ -82,18 +82,23 @@ tool_toolchain = rule(
     implementation = _tool_toolchain_impl,
     doc = """A toolchain that offers tools by name, for `run_tool`.
 
-Example, a toolchain for another build of the CAD runner (the toolchain
-type arrives with this module's toolchain issue):
+Example, a toolchain for another build of the CAD tools. The CAD rules
+look their tools up by these names, `runner`, `measurer` and `renderer`,
+and an action fails if its tool is missing:
 
 ```starlark
 tool_toolchain(
-    name = "my_cad_runner_impl",
-    tools = {"//third_party/cad_runner:cad_runner": "cad_runner"},
+    name = "my_cad_impl",
+    tools = {
+        "//third_party/cad:runner": "runner",
+        "//third_party/cad:measurer": "measurer",
+        "//third_party/cad:renderer": "renderer",
+    },
 )
 
 toolchain(
-    name = "my_cad_runner",
-    toolchain = ":my_cad_runner_impl",
+    name = "my_cad",
+    toolchain = ":my_cad_impl",
     toolchain_type = "@hdlf_rules_brep//brep:toolchain_type",
 )
 ```

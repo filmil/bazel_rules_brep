@@ -100,9 +100,13 @@ hold, with the value found. A value at a limit holds.
 
 The part must always be valid, closed solids (the limit `solid`): OCCT's
 BRepCheck_Analyzer finds no fault, it has at least one solid, every
-shell is closed, and every face belongs to a solid. A `cad_part` is
-checked for this when it is built; a STEP file from elsewhere, such as
-one with an open shell or loose faces, fails here.
+shell is closed, and every face belongs to a solid. When a `cad_part` is
+built, its runner checks less: a build123d part must be valid and have a
+volume; a CadQuery part must also have a solid and hold nothing outside
+its solids (no loose shells, faces, wires, edges or vertices). Neither
+runner checks that every shell is closed. So this test is the full
+`solid` check for any part, and the only check for a STEP file from
+elsewhere, such as one with an open shell or loose faces.
 
 * `min_volume`, `max_volume`: mm^3.
 * `max_size`: the largest bounding box, `[X, Y, Z]` in mm.
