@@ -3,11 +3,11 @@
 
 Usage:
 
-    measurer --step IN.step --out OUT.txt [--min-wall GRID]
+    measurer --step IN.step --out OUT.txt [--min-wall GRID] [--solid]
 
 It writes one quantity per line, "key value...", numbers in millimeters
 (mm, mm², mm³) with 6 decimals. The format is stable: geometry_equal_test
-reads it, and cad_check_test will (issue #12).
+reads it, and so does cad_check_test (issue #12).
 
     volume V
     area A
@@ -19,12 +19,22 @@ reads it, and cad_check_test will (issue #12).
     edges N
     vertices N
 
-With --min-wall GRID it adds a last line, "min_wall T": the thinnest
-wall found, in mm. From a GRID x GRID grid of points on each face (those
-inside it), a ray goes inward along the normal, and T is the shortest
-distance to where it leaves the solid. It is sampled: a wall thinner than
-the grid's spacing in a small spot can be missed; a larger GRID looks
-closer. The order and the points are fixed, so T repeats.
+With --solid it adds two lines, "valid 1" or "valid 0", and "closed 1" or
+"closed 0". valid is OCCT's BRepCheck_Analyzer: the shape has no faults.
+closed means the shape is solids, each bounded by closed shells: it has
+at least one solid, every shell is closed (OCCT's BRep_Tool.IsClosed:
+each edge between two faces), and every face, edge and vertex belongs to
+a solid. A STEP file with an open shell, or loose faces, edges or
+vertices, is not closed.
+
+With --min-wall GRID it adds a last line, "min_wall T X Y Z": the
+thinnest wall found, T in mm, and where: X Y Z is the point on the face
+where that wall's ray starts. From a GRID x GRID grid of points on each
+face (those inside it), a ray goes inward along the normal, and T is the
+shortest distance to where it leaves the solid. It is sampled: a wall
+thinner than the grid's spacing in a small spot can be missed; a larger
+GRID looks closer. The order and the points are fixed, so T and the
+point repeat; of equal walls, the first found is named.
 
 center is the center of mass at uniform density; min and max are the
 corners of the tightest box around the shape, from its geometry rather than
@@ -100,6 +110,37 @@ def measure(shape):
     ]
 
 
+def solid_checks(shape):
+    """Whether shape is valid, and whether it is closed solids.
+
+    Returns [("valid", [0 or 1]), ("closed", [0 or 1])]; see the module's
+    doc.
+    """
+    from OCP.BRep import BRep_Tool
+    from OCP.BRepCheck import BRepCheck_Analyzer
+    from OCP.collections import IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher
+    from OCP.TopAbs import TopAbs_EDGE, TopAbs_FACE, TopAbs_SHELL, TopAbs_SOLID, TopAbs_VERTEX
+    from OCP.TopExp import TopExp, TopExp_Explorer
+
+    valid = BRepCheck_Analyzer(shape).IsValid()
+    closed = count(shape, TopAbs_SOLID) > 0
+    shells = TopExp_Explorer(shape, TopAbs_SHELL)
+    while closed and shells.More():
+        closed = BRep_Tool.IsClosed_s(shells.Current())
+        shells.Next()
+    # Every face, edge and vertex of the shape is one of its solids'.
+    for kind in (TopAbs_FACE, TopAbs_EDGE, TopAbs_VERTEX):
+        if not closed:
+            break
+        in_solids = IndexedMap_TopoDS_Shape_TopTools_ShapeMapHasher()
+        solids = TopExp_Explorer(shape, TopAbs_SOLID)
+        while solids.More():
+            TopExp.MapShapes_s(solids.Current(), kind, in_solids)
+            solids.Next()
+        closed = in_solids.Extent() == count(shape, kind)
+    return [("valid", [1 if valid else 0]), ("closed", [1 if closed else 0])]
+
+
 def min_wall(shape, grid):
     """The thinnest wall of shape, sampled on a grid x grid per face (mm).
 
@@ -108,7 +149,9 @@ def min_wall(shape, grid):
     a little inside the face (by more than the face's own tolerance, so it
     does not meet the face it starts on) and runs along the inward normal;
     the wall is the distance to the first place where the ray leaves the
-    solid. Returns None when no ray leaves it (no solid, or open faces).
+    solid. Returns (T, (X, Y, Z)): the thinnest wall, and the point on the
+    face where its ray starts. Returns None when no ray leaves it (no
+    solid, or open faces).
     """
     from OCP.BRep import BRep_Tool
     from OCP.BRepAdaptor import BRepAdaptor_Surface
@@ -158,8 +201,9 @@ def min_wall(shape, grid):
                 exits = [inter.WParameter(h) for h in range(1, inter.NbPnt() + 1) if inter.Transition(h) == IntCurveSurface_Out]
                 if exits:
                     t = min(exits)
-                    if best is None or t < best:
-                        best = t
+                    if best is None or t < best[0]:
+                        p = props.Value()
+                        best = (t, (p.X(), p.Y(), p.Z()))
     return best
 
 
@@ -180,17 +224,20 @@ def main(argv):
     p.add_argument("--step", required=True, help="the model, as STEP")
     p.add_argument("--out", required=True, help="write the measurements here")
     p.add_argument("--min-wall", type=int, default=0, help="also measure the thinnest wall, on a GRID x GRID grid per face")
+    p.add_argument("--solid", action="store_true", help="also check that the shape is valid, closed solids")
     a = p.parse_args(argv)
     if a.min_wall < 0 or a.min_wall > 100:
         p.error("--min-wall must be 1 to 100 (0: not measured)")
     try:
         shape = load_step(a.step)
         m = measure(shape)
+        if a.solid:
+            m += solid_checks(shape)
         if a.min_wall:
             w = min_wall(shape, a.min_wall)
             if w is None:
                 raise MeasureError("no wall found: no inward ray meets the solid again")
-            m.append(("min_wall", [w]))
+            m.append(("min_wall", [w[0], w[1][0], w[1][1], w[1][2]]))
         out = text(m)
     except MeasureError as e:
         if str(e).startswith(a.step):

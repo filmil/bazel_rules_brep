@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# cad_check_test (issue #12): a ribbed plate within every limit; the same
-# plate as a STEP file; known-bad parts (spec T3) whose wall, size or
-# volume is out of bounds; and limits that fail analysis.
+# cad_check_test (issues #12, #17): a ribbed plate within every limit; the
+# same plate as a STEP file; known-bad parts (spec T3) whose wall, size or
+# volume is out of bounds, or that are not a closed solid; and limits that
+# fail analysis.
+load("@bazel_lib//lib:run_binary.bzl", "run_binary")
 load("//brep:defs.bzl", "cad_check_test", "cad_part")
 load("//tests:fails_test.bzl", "fails_test")
 
@@ -195,4 +197,27 @@ fails_test(
     size = "small",
     message = "expect_failing goes with expect = \"fail\"",
     target_under_test = ":failing_without_fail",
+)
+
+# Known bad (issue #17): the plate's STEP file with one face taken out of
+# its shell, as from a tool that is not cad_part. Its volume and size are
+# within limits; it fails as not a closed solid.
+run_binary(
+    name = "open_shell",
+    srcs = [":plate"],
+    outs = ["open_shell.step"],
+    args = [
+        "$(execpath open_shell.step)",
+        "$(execpaths :plate)",
+    ],
+    tool = "//tests/check/dropface",
+)
+
+cad_check_test(
+    name = "open_shell_check_test",
+    size = "small",
+    expect = "fail",
+    expect_failing = ["solid"],
+    max_volume = "5000",
+    part = ":open_shell",
 )

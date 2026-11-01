@@ -148,6 +148,21 @@ class MinWallTest(unittest.TestCase):
         shape = Box(30, 30, 5) + Pos(0, 0, 7.5) * Box(30, 0.8, 10)
         self.assertAlmostEqual(0.8, self.wall(shape), places=6)
 
+    def test_where(self):
+        # The thinnest wall is named by the point on the face where its ray
+        # starts: on a side of the 0.8 mm rib. The base spans z -2.5 to
+        # 2.5 and the rib z 2.5 to 12.5 (build123d's boxes are centered).
+        from build123d import Box, Pos
+
+        shape = Box(30, 30, 5) + Pos(0, 0, 7.5) * Box(30, 0.8, 10)
+        out = os.path.join(tempfile.mkdtemp(), "m.txt")
+        measurer.main(["--step", step_of(shape), "--out", out, "--min-wall", "5"])
+        with open(out, encoding="utf-8") as f:
+            t, x, y, z = (float(v) for v in f.read().splitlines()[-1].split()[1:])
+        self.assertAlmostEqual(0.8, t, places=6)
+        self.assertAlmostEqual(0.4, abs(y), places=6)
+        self.assertTrue(-15 <= x <= 15 and 2.5 <= z <= 12.5, (x, y, z))
+
     def test_cylinder_wall(self):
         # A tube, outer radius 5, inner 4: a 1 mm wall around the curve.
         from build123d import Cylinder
@@ -180,6 +195,71 @@ class MinWallTest(unittest.TestCase):
         from build123d import Box, Compound, Pos
 
         self.assertAlmostEqual(10, self.wall(Compound([Box(10, 10, 10), Pos(10, 0, 0) * Box(10, 10, 10)])), places=6)
+
+
+
+class SolidTest(unittest.TestCase):
+    def checks(self, shape):
+        out = os.path.join(tempfile.mkdtemp(), "m.txt")
+        measurer.main(["--step", step_of(shape), "--out", out, "--solid"])
+        with open(out, encoding="utf-8") as f:
+            lines = dict(l.split(" ", 1) for l in f.read().splitlines())
+        return lines["valid"], lines["closed"]
+
+    def test_box(self):
+        from build123d import Box
+
+        self.assertEqual(("1", "1"), self.checks(Box(10, 20, 30)))
+
+    def test_two_solids(self):
+        from build123d import Box, Compound, Pos
+
+        self.assertEqual(("1", "1"), self.checks(Compound([Box(10, 10, 10), Pos(20, 0, 0) * Box(5, 5, 5)])))
+
+    def test_open_shell(self):
+        # A box with its top face taken away: a shell, open, no solid.
+        from build123d import Box, Shell
+
+        faces = Box(10, 10, 10).faces().sort_by()  # bottom first
+        self.assertEqual("0", self.checks(Shell(faces[:-1]))[1])
+
+    def test_solid_with_open_shell(self):
+        # A solid made of a box's shell with its top face taken away: one
+        # solid, whose shell is open. The shell check finds it.
+        from build123d import Box, Shell, Solid
+        from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeSolid
+        from OCP.TopoDS import TopoDS
+
+        faces = Box(10, 10, 10).faces().sort_by()
+        maker = BRepBuilderAPI_MakeSolid(TopoDS.Shell(Shell(faces[:-1]).wrapped))
+        solid = Solid(maker.Solid())
+        self.assertEqual("0", self.checks(solid)[1])
+
+    def test_loose_edge(self):
+        # A good solid, and an edge beside it.
+        from build123d import Box, Compound, Edge
+
+        shape = Compound([Box(10, 10, 10), Edge.make_line((30, 0, 0), (40, 0, 0))])
+        self.assertEqual("0", self.checks(shape)[1])
+
+    def test_lone_face(self):
+        from build123d import Rectangle
+
+        self.assertEqual("0", self.checks(Rectangle(10, 10).face())[1])
+
+    def test_loose_face(self):
+        # A good solid, and a face beside it that bounds nothing.
+        from build123d import Box, Compound, Pos, Rectangle
+
+        shape = Compound([Box(10, 10, 10), Pos(30, 0, 0) * Rectangle(5, 5).face()])
+        self.assertEqual("0", self.checks(shape)[1])
+
+    def test_off_by_default(self):
+        from build123d import Box
+
+        text = run(step_of(Box(1, 1, 1)))
+        self.assertNotIn("valid", text)
+        self.assertNotIn("closed", text)
 
 
 if __name__ == "__main__":
