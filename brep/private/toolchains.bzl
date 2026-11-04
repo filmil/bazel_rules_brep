@@ -39,12 +39,12 @@ helpers_toolchain = rule(
           "the geometry checker.",
     attrs = {
         "launcher": attr.label(mandatory = True, executable = True, cfg = "exec"),
-        "swapcheck": attr.label(mandatory = True, executable = True, cfg = "target"),
-        "compare": attr.label(mandatory = True, executable = True, cfg = "target"),
-        "geqcheck": attr.label(mandatory = True, executable = True, cfg = "target"),
-        "fitcheck": attr.label(mandatory = True, executable = True, cfg = "target"),
-        "overlapcheck": attr.label(mandatory = True, executable = True, cfg = "target"),
-        "partcheck": attr.label(mandatory = True, executable = True, cfg = "target"),
+        "swapcheck": attr.label(mandatory = True, executable = True, cfg = "exec"),
+        "compare": attr.label(mandatory = True, executable = True, cfg = "exec"),
+        "geqcheck": attr.label(mandatory = True, executable = True, cfg = "exec"),
+        "fitcheck": attr.label(mandatory = True, executable = True, cfg = "exec"),
+        "overlapcheck": attr.label(mandatory = True, executable = True, cfg = "exec"),
+        "partcheck": attr.label(mandatory = True, executable = True, cfg = "exec"),
     },
 )
 
